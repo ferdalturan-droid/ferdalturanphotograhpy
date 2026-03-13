@@ -157,16 +157,39 @@ code {
     animation: pulse-stat 0.3s ease-out;
 }
 
-/* Hide Emergent badge */
+/* Hide Emergent badge - FORCE REMOVE */
 [data-testid="emergent-badge"],
 [class*="emergent"],
+[class*="Emergent"],
 a[href*="emergent"],
+a[href*="Emergent"],
 div[class*="Made with"],
+div[class*="made-with"],
 .emergent-badge,
-#emergent-badge {
+#emergent-badge,
+[id*="emergent"],
+[id*="Emergent"],
+div[style*="emergent"],
+iframe[src*="emergent"],
+script[src*="emergent"],
+/* Target fixed position badges at bottom */
+body > div[style*="fixed"][style*="bottom"],
+body > a[style*="fixed"][style*="bottom"],
+body > div[style*="position: fixed"][style*="bottom"],
+/* Target any badge-like element */
+[class*="badge"][class*="powered"],
+[class*="watermark"],
+[class*="branding"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
 }
 
 /* ============= MOBILE RESPONSIVE STYLES ============= */
