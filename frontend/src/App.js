@@ -8,7 +8,8 @@ import {
   Truck, Users, Mail, FileText, CheckCircle2, MapPin,
   Wand2, Plus, Trash2, Clock, Weight, X, 
   Pause, RotateCcw, Download, Settings, ChevronDown, Calendar,
-  Shield, Send, Eye, Phone, Car, BarChart3, Navigation, Edit2, LogOut
+  Shield, Send, Eye, Phone, Car, BarChart3, Navigation, Edit2, LogOut,
+  History, Building2, ChevronLeft, ChevronRight
 } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -72,7 +73,7 @@ const PladsButton = ({ name, isSelected, onClick, tourCount = 0 }) => (
   </button>
 );
 
-const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, driverName }) => {
+const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, driverName, isGroupStart, isGroupEnd, isInGroup }) => {
   const [weight, setWeight] = useState(tour.weight || "");
   const [time, setTime] = useState(tour.time || "");
 
@@ -124,8 +125,16 @@ const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, dr
         ? "bg-red-50 dark:bg-red-950/30"
         : "";
 
+  // Group border styling for same address tours - using box-shadow as border doesn't work well on tr
+  const groupStyle = isInGroup 
+    ? { boxShadow: 'inset 4px 0 0 0 #ef4444' }
+    : {};
+
+  // Add visual indicator for grouped rows
+  const groupBgClass = isInGroup ? "bg-red-50/50 dark:bg-red-900/20" : "";
+
   return (
-    <tr className={`${rowClass} border-b border-border hover:bg-muted/50 transition-colors`} data-testid={`tour-row-${tour.id}`}>
+    <tr className={`${rowClass} ${groupBgClass} border-b border-border hover:bg-muted/50 transition-colors`} style={groupStyle} data-testid={`tour-row-${tour.id}`}>
       <td className="p-3 font-medium">
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
@@ -209,17 +218,27 @@ const AdminPage = ({ onLogout }) => {
   const [editingDriver, setEditingDriver] = useState(null);
   const [newDriver, setNewDriver] = useState({ name: "", plate: "", area: "", phone: "", email: "" });
   const [showAddForm, setShowAddForm] = useState(false);
+  
+  // New state for plads management and history
+  const [pladsList, setPladsList] = useState([]);
+  const [newPladsName, setNewPladsName] = useState("");
+  const [reportHistory, setReportHistory] = useState([]);
+  const [activeTab, setActiveTab] = useState("drivers"); // drivers, plads, history
 
   const fetchData = useCallback(async () => {
     try {
-      const [driversRes, statsRes, messagesRes] = await Promise.all([
+      const [driversRes, statsRes, messagesRes, pladsRes, historyRes] = await Promise.all([
         axios.get(`${API}/drivers`),
         axios.get(`${API}/admin/stats`),
-        axios.get(`${API}/messages`)
+        axios.get(`${API}/messages`),
+        axios.get(`${API}/plads`),
+        axios.get(`${API}/reports/history?days=30`)
       ]);
       setDrivers(driversRes.data);
       setStats(statsRes.data);
       setMessages(messagesRes.data);
+      setPladsList(pladsRes.data);
+      setReportHistory(historyRes.data);
     } catch (e) {
       console.error("Error fetching admin data:", e);
     }
@@ -293,6 +312,32 @@ const AdminPage = ({ onLogout }) => {
     }
   };
 
+  const handleAddPlads = async () => {
+    if (!newPladsName.trim()) {
+      toast.error("Indtast plads navn");
+      return;
+    }
+    try {
+      await axios.post(`${API}/plads`, { name: newPladsName.trim() });
+      setNewPladsName("");
+      fetchData();
+      toast.success("Plads tilføjet");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Fejl ved tilføjelse");
+    }
+  };
+
+  const handleDeletePlads = async (pladsId) => {
+    if (!window.confirm("Er du sikker på at du vil slette denne plads?")) return;
+    try {
+      await axios.delete(`${API}/plads/${pladsId}`);
+      fetchData();
+      toast.success("Plads slettet");
+    } catch (e) {
+      toast.error("Fejl ved sletning");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900" data-testid="admin-page">
       {/* Admin Header */}
@@ -310,6 +355,32 @@ const AdminPage = ({ onLogout }) => {
           </button>
         </div>
       </header>
+
+      {/* Tab Navigation */}
+      <div className="bg-white dark:bg-slate-800 border-b shadow-sm">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex gap-1">
+            <button 
+              onClick={() => setActiveTab("drivers")}
+              className={`px-4 py-3 font-medium transition-colors ${activeTab === "drivers" ? "text-red-600 border-b-2 border-red-600" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <Users className="w-4 h-4 inline mr-2" /> Chauffører
+            </button>
+            <button 
+              onClick={() => setActiveTab("plads")}
+              className={`px-4 py-3 font-medium transition-colors ${activeTab === "plads" ? "text-red-600 border-b-2 border-red-600" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <Building2 className="w-4 h-4 inline mr-2" /> Genbrugsplads
+            </button>
+            <button 
+              onClick={() => setActiveTab("history")}
+              className={`px-4 py-3 font-medium transition-colors ${activeTab === "history" ? "text-red-600 border-b-2 border-red-600" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <History className="w-4 h-4 inline mr-2" /> Historik
+            </button>
+          </div>
+        </div>
+      </div>
 
       <main className="max-w-7xl mx-auto p-6 space-y-6">
         {/* Stats Overview */}
@@ -342,6 +413,8 @@ const AdminPage = ({ onLogout }) => {
         </section>
 
         {/* Drivers Management */}
+        {activeTab === "drivers" && (
+        <>
         <section className="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <h2 className="font-heading font-bold text-lg flex items-center gap-2">
@@ -468,7 +541,7 @@ const AdminPage = ({ onLogout }) => {
           </div>
         </section>
 
-        {/* Messages Section */}
+        {/* Messages Section - inside drivers tab */}
         <section className="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
           <div className="p-4 border-b border-border">
             <h2 className="font-heading font-bold text-lg flex items-center gap-2">
@@ -509,6 +582,143 @@ const AdminPage = ({ onLogout }) => {
             </div>
           </div>
         </section>
+        </>
+        )}
+
+        {/* Plads Management Tab */}
+        {activeTab === "plads" && (
+        <section className="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <h2 className="font-heading font-bold text-lg flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-red-600" /> Genbrugsplads / Områder
+            </h2>
+          </div>
+          <div className="p-4">
+            {/* Add new plads */}
+            <div className="flex gap-3 mb-6">
+              <input 
+                type="text" 
+                value={newPladsName} 
+                onChange={(e) => setNewPladsName(e.target.value)}
+                placeholder="Ny plads/by navn..."
+                className="flex-1 px-4 py-2 border rounded-lg"
+                onKeyDown={(e) => e.key === "Enter" && handleAddPlads()}
+              />
+              <button 
+                onClick={handleAddPlads}
+                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> Tilføj
+              </button>
+            </div>
+            
+            {/* Plads list */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {pladsList.map(plads => (
+                <div key={plads.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-red-500" />
+                    <span className="font-medium">{plads.name}</span>
+                  </div>
+                  <button 
+                    onClick={() => handleDeletePlads(plads.id)}
+                    className="p-1 text-red-500 hover:text-red-600 hover:bg-red-100 rounded"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              {pladsList.length === 0 && (
+                <p className="col-span-full text-center text-muted-foreground py-8">
+                  Ingen plads tilføjet endnu
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+        )}
+
+        {/* History Tab */}
+        {activeTab === "history" && (
+        <section className="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
+          <div className="p-4 border-b border-border">
+            <h2 className="font-heading font-bold text-lg flex items-center gap-2">
+              <History className="w-5 h-5 text-red-600" /> Rapport Historik (sidste 30 dage)
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b">
+                  <th className="p-3 text-left">Dato</th>
+                  <th className="p-3 text-center">Ture</th>
+                  <th className="p-3 text-center">Færdig</th>
+                  <th className="p-3 text-center">Total kg</th>
+                  <th className="p-3 text-center">Chauffører</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportHistory.map(day => (
+                  <tr key={day.date} className="border-b hover:bg-slate-50 dark:hover:bg-slate-900">
+                    <td className="p-3 font-medium">
+                      {new Date(day.date).toLocaleDateString("da-DK", { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </td>
+                    <td className="p-3 text-center">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
+                        {day.total_tours}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
+                        {day.completed_tours}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center font-mono font-bold">
+                      {day.total_weight.toLocaleString()} kg
+                    </td>
+                    <td className="p-3 text-center">
+                      {day.driver_count}
+                    </td>
+                  </tr>
+                ))}
+                {reportHistory.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="p-8 text-center text-muted-foreground">
+                      Ingen historik fundet
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Summary stats */}
+          {reportHistory.length > 0 && (
+            <div className="p-4 border-t bg-slate-50 dark:bg-slate-900">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {reportHistory.reduce((sum, d) => sum + d.total_tours, 0)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Total ture</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-emerald-600">
+                    {reportHistory.reduce((sum, d) => sum + d.completed_tours, 0)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Fuldførte</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-amber-600">
+                    {reportHistory.reduce((sum, d) => sum + d.total_weight, 0).toLocaleString()} kg
+                  </div>
+                  <div className="text-xs text-muted-foreground">Total vægt</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+        )}
       </main>
     </div>
   );
@@ -528,6 +738,7 @@ function App() {
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [tours, setTours] = useState([]);
   const [reportId, setReportId] = useState("");
+  const [pladsList, setPladsList] = useState([]); // Dynamic plads list from DB
   
   // Filter state
   const [selectedPlads, setSelectedPlads] = useState("");
@@ -559,10 +770,8 @@ function App() {
   const [driverMessages, setDriverMessages] = useState([]);
   const [showMessages, setShowMessages] = useState(false);
 
-  const pladsOptions = [
-    "Glostrup", "Herlev", "Hillerød", "Ballerup", "Skipstrup",
-    "Helsingør", "Køge", "Bjæverskov", "St. Heddinge", "Hårlev", "Gribskov"
-  ];
+  // Get plads names from dynamic list
+  const pladsOptions = pladsList.map(p => p.name);
 
   // ============= API CALLS =============
 
@@ -589,6 +798,9 @@ function App() {
     try {
       await axios.post(`${API}/seed`);
       fetchDrivers();
+      // Fetch plads list
+      const pladsRes = await axios.get(`${API}/plads`);
+      setPladsList(pladsRes.data);
     } catch (e) {
       console.error("Error seeding data:", e);
     }
@@ -1365,11 +1577,34 @@ function App() {
                     </td>
                   </tr>
                 ) : (
-                  sortedTours.map(tour => (
-                    <TourRow key={tour.id} tour={tour} onUpdate={handleUpdateTour}
-                      onDelete={handleDeleteTour} onToggleOnWay={handleToggleOnWay}
-                      onToggleComplete={handleToggleComplete} driverName={driverName} />
-                  ))
+                  sortedTours.map((tour, index) => {
+                    // Check if this tour shares address with others (for grouping)
+                    const addressCount = sortedTours.filter(t => 
+                      !t.is_pause && t.address && t.address === tour.address
+                    ).length;
+                    const isInGroup = addressCount > 1 && !tour.is_pause && tour.address;
+                    
+                    // Find group boundaries
+                    const prevTour = index > 0 ? sortedTours[index - 1] : null;
+                    const nextTour = index < sortedTours.length - 1 ? sortedTours[index + 1] : null;
+                    const isGroupStart = isInGroup && (!prevTour || prevTour.address !== tour.address);
+                    const isGroupEnd = isInGroup && (!nextTour || nextTour.address !== tour.address);
+                    
+                    return (
+                      <TourRow 
+                        key={tour.id} 
+                        tour={tour} 
+                        onUpdate={handleUpdateTour}
+                        onDelete={handleDeleteTour} 
+                        onToggleOnWay={handleToggleOnWay}
+                        onToggleComplete={handleToggleComplete} 
+                        driverName={driverName}
+                        isInGroup={isInGroup}
+                        isGroupStart={isGroupStart}
+                        isGroupEnd={isGroupEnd}
+                      />
+                    );
+                  })
                 )}
               </tbody>
             </table>

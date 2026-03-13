@@ -198,6 +198,24 @@ class DriverStats(BaseModel):
     last_end_time: str = ""
     reports: List[dict] = []
 
+class Plads(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    active: bool = True
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class PladsCreate(BaseModel):
+    name: str
+
+class ReportHistory(BaseModel):
+    date: str
+    total_tours: int
+    completed_tours: int
+    total_weight: float
+    driver_count: int
+    reports: List[dict]
+
 # ============= DRIVER ENDPOINTS =============
 
 @api_router.get("/drivers", response_model=List[Driver])
@@ -302,6 +320,57 @@ async def delete_tours_by_report(report_id: str):
     return {"message": f"Deleted {result.deleted_count} tours"}
 
 # ============= REPORT ENDPOINTS =============
+
+@api_router.get("/reports/history")
+async def get_report_history(days: int = 30):
+    """Get report history for the last N days"""
+    from datetime import timedelta
+    
+    history = []
+    today = datetime.now(timezone.utc).date()
+    
+    for i in range(days):
+        date = today - timedelta(days=i)
+        date_str = date.strftime("%Y-%m-%d")
+        
+        # Get reports for this date
+        day_reports = await db.reports.find(
+            {"report_date": date_str},
+            {"_id": 0}
+        ).to_list(100)
+        
+        if not day_reports:
+            continue
+            
+        # Get tours for this date
+        day_tours = await db.tours.find(
+            {"date": date_str, "is_pause": False},
+            {"_id": 0}
+        ).to_list(500)
+        
+        total_tours = len(day_tours)
+        completed_tours = len([t for t in day_tours if t.get("completed")])
+        total_weight = sum(t.get("weight", 0) or 0 for t in day_tours)
+        
+        # Get unique drivers
+        driver_ids = set(r.get("driver_id") for r in day_reports if r.get("driver_id"))
+        
+        history.append({
+            "date": date_str,
+            "total_tours": total_tours,
+            "completed_tours": completed_tours,
+            "total_weight": total_weight,
+            "driver_count": len(driver_ids),
+            "reports": [{
+                "id": r["id"],
+                "driver_name": r.get("driver_name", ""),
+                "start_time": r.get("start_time", ""),
+                "end_time": r.get("end_time", ""),
+                "plads": r.get("plads", "")
+            } for r in day_reports[:10]]
+        })
+    
+    return history
 
 @api_router.get("/reports", response_model=List[Report])
 async def get_reports(driver_id: Optional[str] = None, date: Optional[str] = None):
@@ -584,12 +653,51 @@ async def admin_login(credentials: dict):
     else:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+# ============= PLADS MANAGEMENT =============
+
+@api_router.get("/plads", response_model=List[Plads])
+async def get_plads():
+    plads_list = await db.plads.find({"active": True}, {"_id": 0}).to_list(100)
+    return plads_list
+
+@api_router.post("/plads", response_model=Plads)
+async def create_plads(plads: PladsCreate):
+    # Check if plads already exists
+    existing = await db.plads.find_one({"name": plads.name})
+    if existing:
+        raise HTTPException(status_code=400, detail="Plads already exists")
+    
+    plads_obj = Plads(**plads.model_dump())
+    doc = plads_obj.model_dump()
+    await db.plads.insert_one(doc)
+    return plads_obj
+
+@api_router.delete("/plads/{plads_id}")
+async def delete_plads(plads_id: str):
+    result = await db.plads.update_one(
+        {"id": plads_id},
+        {"$set": {"active": False}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Plads not found")
+    return {"message": "Plads deleted"}
+
 # ============= SEED DATA =============
 
 @api_router.post("/seed")
 async def seed_data():
     existing = await db.drivers.count_documents({})
     if existing > 0:
+        # Still seed plads if not seeded
+        existing_plads = await db.plads.count_documents({})
+        if existing_plads == 0:
+            default_plads = [
+                "Glostrup", "Herlev", "Hillerød", "Ballerup", "Skipstrup",
+                "Helsingør", "Køge", "Bjæverskov", "St. Heddinge", "Hårlev", "Gribskov"
+            ]
+            for plads_name in default_plads:
+                plads = Plads(name=plads_name)
+                await db.plads.insert_one(plads.model_dump())
         return {"message": "Data already seeded", "driver_count": existing}
     
     default_drivers = [
@@ -611,7 +719,19 @@ async def seed_data():
         driver = Driver(**driver_data)
         await db.drivers.insert_one(driver.model_dump())
     
-    return {"message": "Seeded default drivers", "driver_count": len(default_drivers)}
+    # Seed default plads
+    default_plads = [
+        "Glostrup", "Herlev", "Hillerød", "Ballerup", "Skipstrup",
+        "Helsingør", "Køge", "Bjæverskov", "St. Heddinge", "Hårlev", "Gribskov"
+    ]
+    
+    existing_plads = await db.plads.count_documents({})
+    if existing_plads == 0:
+        for plads_name in default_plads:
+            plads = Plads(name=plads_name)
+            await db.plads.insert_one(plads.model_dump())
+    
+    return {"message": "Seeded default drivers and plads", "driver_count": len(default_drivers)}
 
 @api_router.get("/")
 async def root():
