@@ -49,6 +49,24 @@
 - [2026-03-13] Feature: FRI (day off) option with visual indicator
 - [2026-03-13] Feature: Send individual/all driver emails via mailto:
 - [2026-03-13] Feature: Email column in Chauffører tab with edit capability
+- [2026-03-13] Feature: Weekly planning calendar with Daglig/Ugentlig toggle
+- [2026-03-13] Feature: Week navigation (prev/next arrows)
+- [2026-03-13] Feature: Gem uge (save week) functionality
+- [2026-03-13] Feature: Send ugeplan (send weekly plan) via email
+- [2026-03-13] Feature: Daily summary in weekly view (working/FRI count per day)
+
+## Database Collections
+- drivers: Chauffør data with email
+- tours: Daily tour records
+- reports: Daily reports
+- messages: Admin-driver messages
+- plads: Genbrugsplads locations
+- schedules: Weekly schedule entries (driver_id, date, plads)
+
+## API Endpoints (Schedule)
+- GET /api/schedule?week_start=YYYY-MM-DD
+- POST /api/schedule/bulk (multiple entries)
+- DELETE /api/schedule?week_start=YYYY-MM-DD
 
 ## Known Issues / Backlog
 ### P0 (Critical) - ALL RESOLVED
