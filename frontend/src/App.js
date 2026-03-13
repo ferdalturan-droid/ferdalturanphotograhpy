@@ -223,7 +223,10 @@ const AdminPage = ({ onLogout }) => {
   const [pladsList, setPladsList] = useState([]);
   const [newPladsName, setNewPladsName] = useState("");
   const [reportHistory, setReportHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState("drivers"); // drivers, plads, history
+  const [activeTab, setActiveTab] = useState("schedule"); // schedule, drivers, plads, history
+  
+  // Driver schedule state - each driver's assigned plads for today
+  const [driverSchedule, setDriverSchedule] = useState({}); // { driverId: "pladsName" or "FRI" }
 
   const fetchData = useCallback(async () => {
     try {
@@ -239,6 +242,13 @@ const AdminPage = ({ onLogout }) => {
       setMessages(messagesRes.data);
       setPladsList(pladsRes.data);
       setReportHistory(historyRes.data);
+      
+      // Initialize driver schedule with their default area
+      const initialSchedule = {};
+      driversRes.data.forEach(d => {
+        initialSchedule[d.id] = d.area || "";
+      });
+      setDriverSchedule(initialSchedule);
     } catch (e) {
       console.error("Error fetching admin data:", e);
     }
@@ -338,6 +348,61 @@ const AdminPage = ({ onLogout }) => {
     }
   };
 
+  // Handle driver schedule change
+  const handleScheduleChange = (driverId, plads) => {
+    setDriverSchedule(prev => ({
+      ...prev,
+      [driverId]: plads
+    }));
+  };
+
+  // Send email to single driver
+  const sendEmailToDriver = (driver, plads) => {
+    if (!driver.email) {
+      toast.error(`${driver.name} har ingen email adresse`);
+      return;
+    }
+    
+    const today = new Date().toLocaleDateString("da-DK", { weekday: 'long', day: 'numeric', month: 'long' });
+    const subject = encodeURIComponent(`Arbejdsplan - ${today}`);
+    
+    let body;
+    if (plads === "FRI") {
+      body = encodeURIComponent(`Hej ${driver.name},\n\nDu har fri i dag (${today}).\n\nMed venlig hilsen\nKORKMAN2 - ILK Company ApS`);
+    } else {
+      body = encodeURIComponent(`Hej ${driver.name},\n\nDu skal arbejde i ${plads} i dag (${today}).\n\nVogn: ${driver.plate}\n\nMed venlig hilsen\nKORKMAN2 - ILK Company ApS`);
+    }
+    
+    window.open(`mailto:${driver.email}?subject=${subject}&body=${body}`, '_blank');
+    toast.success(`Mail åbnet for ${driver.name}`);
+  };
+
+  // Send email to all drivers with assignments
+  const sendEmailToAllDrivers = () => {
+    const driversWithEmail = drivers.filter(d => d.email);
+    if (driversWithEmail.length === 0) {
+      toast.error("Ingen chauffører har email adresse");
+      return;
+    }
+    
+    const today = new Date().toLocaleDateString("da-DK", { weekday: 'long', day: 'numeric', month: 'long' });
+    const subject = encodeURIComponent(`Arbejdsplan - ${today}`);
+    
+    // Build schedule list
+    let scheduleList = drivers.map(d => {
+      const plads = driverSchedule[d.id] || "Ikke tildelt";
+      return `${d.name}: ${plads === "FRI" ? "FRI" : plads}`;
+    }).join("\n");
+    
+    const body = encodeURIComponent(`Arbejdsplan for ${today}:\n\n${scheduleList}\n\nMed venlig hilsen\nKORKMAN2 - ILK Company ApS`);
+    
+    // Join all emails
+    const emails = driversWithEmail.map(d => d.email).join(",");
+    
+    window.open(`mailto:${emails}?subject=${subject}&body=${body}`, '_blank');
+    toast.success("Mail åbnet for alle chauffører");
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900" data-testid="admin-page">
       {/* Admin Header */}
@@ -360,6 +425,12 @@ const AdminPage = ({ onLogout }) => {
       <div className="bg-white dark:bg-slate-800 border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex gap-1">
+            <button 
+              onClick={() => setActiveTab("schedule")}
+              className={`px-4 py-3 font-medium transition-colors ${activeTab === "schedule" ? "text-red-600 border-b-2 border-red-600" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <Calendar className="w-4 h-4 inline mr-2" /> Planlægning
+            </button>
             <button 
               onClick={() => setActiveTab("drivers")}
               className={`px-4 py-3 font-medium transition-colors ${activeTab === "drivers" ? "text-red-600 border-b-2 border-red-600" : "text-slate-500 hover:text-slate-700"}`}
@@ -412,6 +483,104 @@ const AdminPage = ({ onLogout }) => {
           </div>
         </section>
 
+        {/* Schedule / Planning Tab */}
+        {activeTab === "schedule" && (
+        <section className="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
+          <div className="p-4 border-b border-border flex items-center justify-between">
+            <h2 className="font-heading font-bold text-lg flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-red-600" /> Daglig Planlægning
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                {new Date().toLocaleDateString("da-DK", { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
+            </h2>
+            <button 
+              onClick={sendEmailToAllDrivers}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+            >
+              <Mail className="w-4 h-4" /> Send til alle
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b">
+                  <th className="p-3 text-left">Chauffør</th>
+                  <th className="p-3 text-left">Nummerplade</th>
+                  <th className="p-3 text-left">Email</th>
+                  <th className="p-3 text-left">Arbejdssted</th>
+                  <th className="p-3 text-center">Send Mail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drivers.map(driver => (
+                  <tr key={driver.id} className={`border-b hover:bg-slate-50 dark:hover:bg-slate-900 ${driverSchedule[driver.id] === "FRI" ? "bg-green-50 dark:bg-green-950/20" : ""}`}>
+                    <td className="p-3">
+                      <span className="font-medium">{driver.name}</span>
+                    </td>
+                    <td className="p-3 font-mono text-sm">{driver.plate}</td>
+                    <td className="p-3">
+                      {driver.email ? (
+                        <span className="text-sm text-blue-600">{driver.email}</span>
+                      ) : (
+                        <span className="text-sm text-red-500 italic">Ingen email</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <select 
+                        value={driverSchedule[driver.id] || ""}
+                        onChange={(e) => handleScheduleChange(driver.id, e.target.value)}
+                        className={`px-3 py-2 border rounded-lg w-full max-w-xs ${driverSchedule[driver.id] === "FRI" ? "bg-green-100 text-green-800 font-bold" : ""}`}
+                      >
+                        <option value="">Vælg plads...</option>
+                        <option value="FRI" className="bg-green-100 text-green-800 font-bold">🏖️ FRI (Fridag)</option>
+                        {pladsList.map(p => (
+                          <option key={p.id} value={p.name}>{p.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="p-3 text-center">
+                      <button 
+                        onClick={() => sendEmailToDriver(driver, driverSchedule[driver.id])}
+                        disabled={!driver.email || !driverSchedule[driver.id]}
+                        className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={!driver.email ? "Ingen email" : !driverSchedule[driver.id] ? "Vælg plads først" : "Send mail"}
+                      >
+                        <Mail className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Summary */}
+          <div className="p-4 border-t bg-slate-50 dark:bg-slate-900">
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div>
+                <span className="font-medium text-slate-600">Arbejder:</span>{" "}
+                <span className="font-bold text-blue-600">
+                  {drivers.filter(d => driverSchedule[d.id] && driverSchedule[d.id] !== "FRI").length}
+                </span>
+              </div>
+              <div>
+                <span className="font-medium text-slate-600">FRI:</span>{" "}
+                <span className="font-bold text-green-600">
+                  {drivers.filter(d => driverSchedule[d.id] === "FRI").length}
+                </span>
+              </div>
+              <div>
+                <span className="font-medium text-slate-600">Ikke tildelt:</span>{" "}
+                <span className="font-bold text-amber-600">
+                  {drivers.filter(d => !driverSchedule[d.id]).length}
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+        )}
+
         {/* Drivers Management */}
         {activeTab === "drivers" && (
         <>
@@ -429,7 +598,7 @@ const AdminPage = ({ onLogout }) => {
           {/* Add Driver Form */}
           {showAddForm && (
             <div className="p-4 bg-slate-50 dark:bg-slate-900 border-b border-border">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                 <input type="text" value={newDriver.name} onChange={(e) => setNewDriver({...newDriver, name: e.target.value})}
                   placeholder="Navn" className="px-3 py-2 border rounded-lg" />
                 <input type="text" value={newDriver.plate} onChange={(e) => setNewDriver({...newDriver, plate: e.target.value})}
@@ -438,6 +607,8 @@ const AdminPage = ({ onLogout }) => {
                   placeholder="Område" className="px-3 py-2 border rounded-lg" />
                 <input type="text" value={newDriver.phone} onChange={(e) => setNewDriver({...newDriver, phone: e.target.value})}
                   placeholder="Telefon" className="px-3 py-2 border rounded-lg" />
+                <input type="email" value={newDriver.email} onChange={(e) => setNewDriver({...newDriver, email: e.target.value})}
+                  placeholder="Email" className="px-3 py-2 border rounded-lg" />
                 <button onClick={handleAddDriver} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                   Gem
                 </button>
@@ -454,10 +625,10 @@ const AdminPage = ({ onLogout }) => {
                   <th className="p-3 text-left">Nummerplade</th>
                   <th className="p-3 text-left">Område</th>
                   <th className="p-3 text-left">Telefon</th>
+                  <th className="p-3 text-left">Email</th>
                   <th className="p-3 text-center">Ture i dag</th>
                   <th className="p-3 text-center">Total ture</th>
                   <th className="p-3 text-center">Total kg</th>
-                  <th className="p-3 text-left">Sidste arbejdsdag</th>
                   <th className="p-3 text-center">Handlinger</th>
                 </tr>
               </thead>
@@ -498,6 +669,17 @@ const AdminPage = ({ onLogout }) => {
                             className="px-2 py-1 border rounded w-full" />
                         ) : driver.phone || "-"}
                       </td>
+                      <td className="p-3">
+                        {isEditing ? (
+                          <input type="email" value={editingDriver.email || ""}
+                            onChange={(e) => setEditingDriver({...editingDriver, email: e.target.value})}
+                            className="px-2 py-1 border rounded w-full" />
+                        ) : driver.email ? (
+                          <span className="text-blue-600 text-xs">{driver.email}</span>
+                        ) : (
+                          <span className="text-red-500 text-xs italic">-</span>
+                        )}
+                      </td>
                       <td className="p-3 text-center">
                         <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold">
                           {driverStats.today_completed || 0}/{driverStats.today_tours || 0}
@@ -505,11 +687,6 @@ const AdminPage = ({ onLogout }) => {
                       </td>
                       <td className="p-3 text-center font-bold">{driverStats.completed_tours || 0}</td>
                       <td className="p-3 text-center">{(driverStats.total_weight || 0).toLocaleString()}</td>
-                      <td className="p-3 text-xs">
-                        {driverStats.last_start_time && driverStats.last_end_time ? (
-                          <span>{driverStats.last_start_time} - {driverStats.last_end_time}</span>
-                        ) : "-"}
-                      </td>
                       <td className="p-3">
                         <div className="flex items-center justify-center gap-1">
                           {isEditing ? (
