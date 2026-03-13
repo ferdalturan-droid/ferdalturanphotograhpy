@@ -227,6 +227,42 @@ const AdminPage = ({ onLogout }) => {
   
   // Driver schedule state - each driver's assigned plads for today
   const [driverSchedule, setDriverSchedule] = useState({}); // { driverId: "pladsName" or "FRI" }
+  
+  // Weekly schedule state
+  const [weekStart, setWeekStart] = useState(() => {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Monday
+    const monday = new Date(today.setDate(diff));
+    return monday.toISOString().split('T')[0];
+  });
+  const [weeklySchedule, setWeeklySchedule] = useState({}); // { "driverId-date": "plads" }
+  const [viewMode, setViewMode] = useState("daily"); // "daily" or "weekly"
+
+  // Get week dates
+  const getWeekDates = useCallback(() => {
+    const dates = [];
+    const start = new Date(weekStart);
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+      dates.push(date.toISOString().split('T')[0]);
+    }
+    return dates;
+  }, [weekStart]);
+
+  const fetchWeeklySchedule = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/schedule?week_start=${weekStart}`);
+      const scheduleMap = {};
+      res.data.forEach(s => {
+        scheduleMap[`${s.driver_id}-${s.date}`] = s.plads;
+      });
+      setWeeklySchedule(scheduleMap);
+    } catch (e) {
+      console.error("Error fetching weekly schedule:", e);
+    }
+  }, [weekStart]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -255,6 +291,7 @@ const AdminPage = ({ onLogout }) => {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchWeeklySchedule(); }, [fetchWeeklySchedule]);
 
   const handleAddDriver = async () => {
     if (!newDriver.name || !newDriver.plate) {
@@ -403,6 +440,97 @@ const AdminPage = ({ onLogout }) => {
     toast.success("Mail åbnet for alle chauffører");
   };
 
+  // Navigate weeks
+  const navigateWeek = (direction) => {
+    const current = new Date(weekStart);
+    current.setDate(current.getDate() + (direction * 7));
+    setWeekStart(current.toISOString().split('T')[0]);
+  };
+
+  // Handle weekly schedule change
+  const handleWeeklyScheduleChange = (driverId, date, plads) => {
+    setWeeklySchedule(prev => ({
+      ...prev,
+      [`${driverId}-${date}`]: plads
+    }));
+  };
+
+  // Save weekly schedule
+  const saveWeeklySchedule = async () => {
+    const schedules = [];
+    const weekDates = getWeekDates();
+    
+    drivers.forEach(driver => {
+      weekDates.forEach(date => {
+        const key = `${driver.id}-${date}`;
+        const plads = weeklySchedule[key];
+        if (plads) {
+          schedules.push({
+            driver_id: driver.id,
+            driver_name: driver.name,
+            date: date,
+            plads: plads
+          });
+        }
+      });
+    });
+    
+    if (schedules.length === 0) {
+      toast.error("Ingen ændringer at gemme");
+      return;
+    }
+    
+    try {
+      await axios.post(`${API}/schedule/bulk`, { schedules });
+      toast.success(`${schedules.length} planlægninger gemt!`);
+      fetchWeeklySchedule();
+    } catch (e) {
+      toast.error("Fejl ved gemning");
+    }
+  };
+
+  // Send weekly email
+  const sendWeeklyEmailToAllDrivers = () => {
+    const driversWithEmail = drivers.filter(d => d.email);
+    if (driversWithEmail.length === 0) {
+      toast.error("Ingen chauffører har email adresse");
+      return;
+    }
+    
+    const weekDates = getWeekDates();
+    const dayNames = ["man", "tir", "ons", "tor", "fre", "lør", "søn"];
+    
+    const startDate = new Date(weekStart);
+    const endDate = new Date(weekStart);
+    endDate.setDate(endDate.getDate() + 6);
+    
+    const subject = encodeURIComponent(`Ugeplan - Uge ${getWeekNumber(startDate)}`);
+    
+    // Build schedule for each driver
+    let scheduleList = drivers.map(driver => {
+      const driverSchedule = weekDates.map((date, idx) => {
+        const plads = weeklySchedule[`${driver.id}-${date}`] || "-";
+        return `${dayNames[idx]}: ${plads}`;
+      }).join(", ");
+      return `${driver.name}: ${driverSchedule}`;
+    }).join("\n");
+    
+    const body = encodeURIComponent(`Ugeplan (${startDate.toLocaleDateString("da-DK")} - ${endDate.toLocaleDateString("da-DK")}):\n\n${scheduleList}\n\nMed venlig hilsen\nKORKMAN2 - ILK Company ApS`);
+    
+    const emails = driversWithEmail.map(d => d.email).join(",");
+    window.open(`mailto:${emails}?subject=${subject}&body=${body}`, '_blank');
+    toast.success("Ugeplan mail åbnet");
+  };
+
+  // Get week number
+  const getWeekNumber = (date) => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-900" data-testid="admin-page">
       {/* Admin Header */}
@@ -486,21 +614,70 @@ const AdminPage = ({ onLogout }) => {
         {/* Schedule / Planning Tab */}
         {activeTab === "schedule" && (
         <section className="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <h2 className="font-heading font-bold text-lg flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-red-600" /> Daglig Planlægning
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                {new Date().toLocaleDateString("da-DK", { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </span>
-            </h2>
-            <button 
-              onClick={sendEmailToAllDrivers}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
-            >
-              <Mail className="w-4 h-4" /> Send til alle
-            </button>
+          <div className="p-4 border-b border-border flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <h2 className="font-heading font-bold text-lg flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-red-600" /> Planlægning
+              </h2>
+              {/* View Mode Toggle */}
+              <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+                <button 
+                  onClick={() => setViewMode("daily")}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === "daily" ? "bg-white dark:bg-slate-600 shadow-sm" : "text-slate-600 dark:text-slate-400"}`}
+                >
+                  Daglig
+                </button>
+                <button 
+                  onClick={() => setViewMode("weekly")}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${viewMode === "weekly" ? "bg-white dark:bg-slate-600 shadow-sm" : "text-slate-600 dark:text-slate-400"}`}
+                >
+                  Ugentlig
+                </button>
+              </div>
+            </div>
+            
+            {viewMode === "daily" ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {new Date().toLocaleDateString("da-DK", { weekday: 'long', day: 'numeric', month: 'long' })}
+                </span>
+                <button 
+                  onClick={sendEmailToAllDrivers}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                >
+                  <Mail className="w-4 h-4" /> Send til alle
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button onClick={() => navigateWeek(-1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <span className="text-sm font-medium px-3">
+                  Uge {getWeekNumber(new Date(weekStart))} - {new Date(weekStart).toLocaleDateString("da-DK", { day: 'numeric', month: 'short' })} til {new Date(new Date(weekStart).setDate(new Date(weekStart).getDate() + 6)).toLocaleDateString("da-DK", { day: 'numeric', month: 'short' })}
+                </span>
+                <button onClick={() => navigateWeek(1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={saveWeeklySchedule}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 ml-2"
+                >
+                  <Download className="w-4 h-4" /> Gem uge
+                </button>
+                <button 
+                  onClick={sendWeeklyEmailToAllDrivers}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+                >
+                  <Mail className="w-4 h-4" /> Send ugeplan
+                </button>
+              </div>
+            )}
           </div>
           
+          {/* Daily View */}
+          {viewMode === "daily" && (
+          <>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -555,7 +732,7 @@ const AdminPage = ({ onLogout }) => {
             </table>
           </div>
           
-          {/* Summary */}
+          {/* Daily Summary */}
           <div className="p-4 border-t bg-slate-50 dark:bg-slate-900">
             <div className="flex flex-wrap gap-4 text-sm">
               <div>
@@ -578,6 +755,91 @@ const AdminPage = ({ onLogout }) => {
               </div>
             </div>
           </div>
+          </>
+          )}
+          
+          {/* Weekly View */}
+          {viewMode === "weekly" && (
+          <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900 border-b">
+                  <th className="p-3 text-left sticky left-0 bg-slate-50 dark:bg-slate-900 z-10 min-w-[150px]">Chauffør</th>
+                  {getWeekDates().map((date, idx) => {
+                    const d = new Date(date);
+                    const dayNames = ["søn", "man", "tir", "ons", "tor", "fre", "lør"];
+                    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                    return (
+                      <th key={date} className={`p-2 text-center min-w-[100px] ${isWeekend ? "bg-slate-100 dark:bg-slate-800" : ""}`}>
+                        <div className="font-bold">{dayNames[d.getDay()]}</div>
+                        <div className="text-xs text-muted-foreground">{d.getDate()}/{d.getMonth() + 1}</div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {drivers.map(driver => (
+                  <tr key={driver.id} className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
+                    <td className="p-2 sticky left-0 bg-white dark:bg-slate-800 z-10 border-r">
+                      <div className="font-medium text-sm">{driver.name}</div>
+                      <div className="text-xs text-muted-foreground font-mono">{driver.plate}</div>
+                    </td>
+                    {getWeekDates().map((date) => {
+                      const d = new Date(date);
+                      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                      const key = `${driver.id}-${date}`;
+                      const value = weeklySchedule[key] || "";
+                      
+                      return (
+                        <td key={date} className={`p-1 ${isWeekend ? "bg-slate-50 dark:bg-slate-800/50" : ""} ${value === "FRI" ? "bg-green-50 dark:bg-green-950/30" : ""}`}>
+                          <select 
+                            value={value}
+                            onChange={(e) => handleWeeklyScheduleChange(driver.id, date, e.target.value)}
+                            className={`w-full px-1 py-1.5 text-xs border rounded ${value === "FRI" ? "bg-green-100 text-green-800 font-bold" : "bg-white dark:bg-slate-700"}`}
+                          >
+                            <option value="">-</option>
+                            <option value="FRI">🏖️ FRI</option>
+                            {pladsList.map(p => (
+                              <option key={p.id} value={p.name}>{p.name}</option>
+                            ))}
+                          </select>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Weekly Summary */}
+          <div className="p-4 border-t bg-slate-50 dark:bg-slate-900">
+            <div className="flex flex-wrap gap-6 text-sm">
+              {getWeekDates().map((date) => {
+                const d = new Date(date);
+                const dayNames = ["søn", "man", "tir", "ons", "tor", "fre", "lør"];
+                const working = drivers.filter(dr => {
+                  const val = weeklySchedule[`${dr.id}-${date}`];
+                  return val && val !== "FRI";
+                }).length;
+                const fri = drivers.filter(dr => weeklySchedule[`${dr.id}-${date}`] === "FRI").length;
+                
+                return (
+                  <div key={date} className="text-center">
+                    <div className="font-medium text-xs text-slate-500">{dayNames[d.getDay()]} {d.getDate()}/{d.getMonth() + 1}</div>
+                    <div className="flex gap-2 mt-1">
+                      <span className="text-blue-600 font-bold">{working}</span>
+                      <span className="text-green-600 font-bold">{fri} fri</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          </>
+          )}
         </section>
         )}
 

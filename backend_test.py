@@ -116,6 +116,67 @@ class TourAppAPITester:
         success, response = self.run_test("Clear All Tours", "DELETE", f"tours/report/{self.report_id}", 200)
         return success
 
+    def test_admin_login(self):
+        """Test admin login functionality"""
+        admin_data = {
+            "username": "admin",
+            "password": "ilkaps"
+        }
+        success, response = self.run_test("Admin Login", "POST", "admin/login", 200, admin_data)
+        return success
+
+    def test_get_weekly_schedule(self, week_start="2024-12-02"):
+        """Test getting weekly schedule"""
+        success, response = self.run_test("Get Weekly Schedule", "GET", f"schedule?week_start={week_start}", 200)
+        return success, response
+
+    def test_create_bulk_schedule(self, drivers):
+        """Test creating bulk weekly schedule"""
+        if not drivers:
+            print("❌ No drivers available for schedule test")
+            return False
+            
+        # Create sample schedule data for one week
+        week_start = "2024-12-02"  # Monday
+        schedules = []
+        
+        for i, driver in enumerate(drivers[:3]):  # Test with first 3 drivers
+            for day_offset in range(7):  # 7 days
+                date_obj = datetime.strptime(week_start, "%Y-%m-%d")
+                from datetime import timedelta
+                current_date = date_obj + timedelta(days=day_offset)
+                date_str = current_date.strftime("%Y-%m-%d")
+                
+                # Assign different plads for variety
+                if day_offset == 5 or day_offset == 6:  # Weekend
+                    plads = "FRI"
+                else:
+                    plads_options = ["Glostrup", "Herlev", "Hillerød", "Ballerup"]
+                    plads = plads_options[i % len(plads_options)]
+                
+                schedules.append({
+                    "driver_id": driver["id"],
+                    "driver_name": driver["name"], 
+                    "date": date_str,
+                    "plads": plads
+                })
+        
+        bulk_data = {"schedules": schedules}
+        success, response = self.run_test("Create Bulk Schedule", "POST", "schedule/bulk", 200, bulk_data)
+        if success:
+            print(f"   Created {len(schedules)} schedule entries")
+        return success
+
+    def test_admin_stats(self):
+        """Test admin stats endpoint"""
+        success, response = self.run_test("Get Admin Stats", "GET", "admin/stats", 200)
+        return success, response
+
+    def test_get_messages(self):
+        """Test getting messages"""
+        success, response = self.run_test("Get Messages", "GET", "messages", 200)
+        return success, response
+
 def main():
     print("🚀 Starting Tour App API Testing...")
     tester = TourAppAPITester()
@@ -131,6 +192,40 @@ def main():
     plads_success, plads = tester.test_get_plads()
     if plads_success:
         print(f"   Found {len(plads)} plads")
+
+    # Test admin functionality
+    print("\n🔐 Testing admin functionality...")
+    admin_login_success = tester.test_admin_login()
+    
+    admin_stats_success, stats = tester.test_admin_stats()
+    if admin_stats_success:
+        print(f"   Retrieved stats for {len(stats)} drivers")
+    
+    messages_success, messages = tester.test_get_messages()
+    if messages_success:
+        print(f"   Found {len(messages)} messages")
+
+    # Test weekly schedule functionality
+    print("\n📅 Testing weekly schedule functionality...")
+    schedule_get_success, initial_schedule = tester.test_get_weekly_schedule()
+    if schedule_get_success:
+        print(f"   Initial schedule has {len(initial_schedule)} entries")
+    
+    # Test bulk schedule creation
+    if drivers_success and drivers:
+        bulk_schedule_success = tester.test_create_bulk_schedule(drivers)
+        
+        if bulk_schedule_success:
+            # Verify schedule was created
+            print("\n✅ Verifying schedule creation...")
+            verify_success, new_schedule = tester.test_get_weekly_schedule()
+            if verify_success:
+                print(f"   Schedule now has {len(new_schedule)} entries")
+                
+                # Show some schedule details
+                fri_count = len([s for s in new_schedule if s.get('plads') == 'FRI'])
+                work_count = len([s for s in new_schedule if s.get('plads') != 'FRI'])
+                print(f"   Schedule breakdown: {work_count} working days, {fri_count} free days")
 
     # Test report workflow
     print("\n📋 Testing report workflow...")
@@ -172,6 +267,16 @@ def main():
         print("   2. Database connection issues")
         print("   3. API endpoint paths might have changed")
         print("   4. Missing required fields in requests")
+        
+        print("\n🔍 Weekly Schedule Feature Status:")
+        if not admin_login_success:
+            print("   - Admin login: FAILED")
+        if not schedule_get_success:
+            print("   - Get schedule: FAILED") 
+        if drivers_success and not bulk_schedule_success:
+            print("   - Bulk schedule creation: FAILED")
+    else:
+        print("\n✅ All tests passed! Weekly schedule feature is working correctly.")
     
     return 0 if tester.tests_passed == tester.tests_run else 1
 

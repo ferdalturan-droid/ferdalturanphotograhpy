@@ -208,6 +208,25 @@ class Plads(BaseModel):
 class PladsCreate(BaseModel):
     name: str
 
+class Schedule(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    driver_id: str
+    driver_name: str
+    date: str  # YYYY-MM-DD
+    plads: str  # plads name or "FRI"
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+class ScheduleCreate(BaseModel):
+    driver_id: str
+    driver_name: str
+    date: str
+    plads: str
+
+class ScheduleBulkCreate(BaseModel):
+    schedules: List[ScheduleCreate]
+
 class ReportHistory(BaseModel):
     date: str
     total_tours: int
@@ -681,6 +700,95 @@ async def delete_plads(plads_id: str):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Plads not found")
     return {"message": "Plads deleted"}
+
+# ============= SCHEDULE ENDPOINTS =============
+
+@api_router.get("/schedule")
+async def get_schedule(week_start: str):
+    """Get schedule for a week starting from week_start date"""
+    from datetime import timedelta
+    
+    start_date = datetime.strptime(week_start, "%Y-%m-%d").date()
+    end_date = start_date + timedelta(days=6)
+    
+    schedules = await db.schedules.find({
+        "date": {
+            "$gte": week_start,
+            "$lte": end_date.strftime("%Y-%m-%d")
+        }
+    }, {"_id": 0}).to_list(500)
+    
+    return schedules
+
+@api_router.post("/schedule")
+async def create_schedule(schedule: ScheduleCreate):
+    """Create or update a single schedule entry"""
+    # Check if schedule already exists for this driver and date
+    existing = await db.schedules.find_one({
+        "driver_id": schedule.driver_id,
+        "date": schedule.date
+    })
+    
+    if existing:
+        # Update existing
+        await db.schedules.update_one(
+            {"id": existing["id"]},
+            {"$set": {
+                "plads": schedule.plads,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+        return {**existing, "plads": schedule.plads}
+    else:
+        # Create new
+        schedule_obj = Schedule(**schedule.model_dump())
+        doc = schedule_obj.model_dump()
+        await db.schedules.insert_one(doc)
+        return schedule_obj
+
+@api_router.post("/schedule/bulk")
+async def create_bulk_schedule(data: ScheduleBulkCreate):
+    """Create or update multiple schedule entries"""
+    results = []
+    for schedule in data.schedules:
+        existing = await db.schedules.find_one({
+            "driver_id": schedule.driver_id,
+            "date": schedule.date
+        }, {"_id": 0})
+        
+        if existing:
+            await db.schedules.update_one(
+                {"id": existing["id"]},
+                {"$set": {
+                    "plads": schedule.plads,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            results.append({**existing, "plads": schedule.plads})
+        else:
+            schedule_obj = Schedule(**schedule.model_dump())
+            doc = schedule_obj.model_dump()
+            await db.schedules.insert_one(doc)
+            results.append({k: v for k, v in doc.items() if k != "_id"})
+    
+    return {"message": f"Saved {len(results)} schedules", "count": len(results)}
+
+@api_router.delete("/schedule")
+async def clear_week_schedule(week_start: str):
+    """Clear all schedules for a week"""
+    from datetime import timedelta
+    
+    start_date = datetime.strptime(week_start, "%Y-%m-%d").date()
+    end_date = start_date + timedelta(days=6)
+    
+    result = await db.schedules.delete_many({
+        "date": {
+            "$gte": week_start,
+            "$lte": end_date.strftime("%Y-%m-%d")
+        }
+    })
+    
+    return {"message": f"Deleted {result.deleted_count} schedules"}
 
 # ============= SEED DATA =============
 
