@@ -5,6 +5,9 @@
 2. Pause seçenekleri sadece 45 dk idi - 15/30/45 dk olmalı
 3. Mail parsing'de aynı facility'deki turlar gruplanmıyordu
 4. Driver seçilince plads otomatik seçilmiyordu
+5. Aynı adresdeki turlar görsel olarak gruplanmalı
+6. Admin'de yeni genbrugsplads eklenebilmeli
+7. Geçmiş raporlar görüntülenebilmeli
 
 ## Architecture
 - **Frontend**: React.js with Tailwind CSS
@@ -20,9 +23,12 @@
 6. Pause options (15/30/45 min)
 7. Automatic plads selection based on driver's area
 8. Facility-based tour grouping
+9. Same-address tour visual grouping (red border)
+10. Admin Genbrugsplads management
+11. Report history view (last 30 days)
 
 ## User Personas
-1. **Dispatcher/Admin**: Creates tours, manages drivers, generates reports
+1. **Dispatcher/Admin**: Creates tours, manages drivers, generates reports, manages plads
 2. **Driver**: Views assigned tours, marks completion
 
 ## What's Been Implemented
@@ -30,23 +36,27 @@
 - [2026-03-13] Feature: Pause buttons (15/30/45 min)
 - [2026-03-13] Feature: Auto plads selection when driver selected
 - [2026-03-13] Feature: Tours sorted by facility (same facility together)
-- PDF generation includes all tours with green background for completed
+- [2026-03-13] Feature: Same-address tours marked with red left border
+- [2026-03-13] Feature: Admin panel with 3 tabs (Chauffører, Genbrugsplads, Historik)
+- [2026-03-13] Feature: Dynamic plads management in admin
+- [2026-03-13] Feature: Report history view (last 30 days)
 
 ## Known Issues / Backlog
 ### P0 (Critical) - ALL RESOLVED
 - ~~Page refresh creates new report~~ - FIXED
 - ~~Tours not showing in PDF~~ - FIXED
 
-### P1 (High) - RESOLVED
+### P1 (High) - ALL RESOLVED
 - ~~Only 45 min pause option~~ - FIXED (15/30/45 min)
 - ~~No auto plads selection~~ - FIXED
+- ~~Same address tours not grouped~~ - FIXED
+- ~~No admin plads management~~ - FIXED
+- ~~No report history~~ - FIXED
 
 ### P2 (Medium)
-- Clean up duplicate reports in database
-- Add report history view
 - Export to Excel/CSV
+- Driver performance analytics dashboard
 
 ## Next Tasks
-1. Clean up duplicate reports
-2. Consider adding report archiving feature
-3. Add Excel export option
+1. Consider adding Excel export option
+2. Driver performance metrics visualization
