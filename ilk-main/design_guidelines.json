@@ -1,0 +1,179 @@
+{
+  "project_name": "Kørselsrapport (Driving Report)",
+  "design_identity": {
+    "archetype": "The Tactical Command Center",
+    "core_concept": "Precision, Durability, High-Contrast Efficiency",
+    "emotional_tone": "Professional, Industrial, Reliable, Nordic Clean"
+  },
+  "typography": {
+    "font_family": {
+      "heading": "Chivo, sans-serif",
+      "body": "Public Sans, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl md:text-5xl font-black tracking-tight",
+      "h2": "text-3xl font-bold tracking-tight",
+      "h3": "text-2xl font-bold",
+      "body_lg": "text-lg leading-relaxed",
+      "body": "text-base leading-relaxed",
+      "caption": "text-sm text-muted-foreground",
+      "mono_data": "font-mono text-sm tracking-wide"
+    },
+    "import_url": "https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,100..900;1,100..900&family=JetBrains+Mono:wght@400;500;700&family=Public+Sans:wght@300;400;500;600;700&display=swap"
+  },
+  "colors": {
+    "theme_mode": "system",
+    "palette": {
+      "primary": {
+        "DEFAULT": "#0F172A",
+        "foreground": "#F8FAFC"
+      },
+      "secondary": {
+        "DEFAULT": "#F1F5F9",
+        "foreground": "#0F172A"
+      },
+      "accent": {
+        "DEFAULT": "#F59E0B",
+        "foreground": "#000000",
+        "description": "Signal Amber for actions/alerts"
+      },
+      "brand": {
+        "DEFAULT": "#2563EB",
+        "foreground": "#FFFFFF",
+        "description": "Deep Nordic Blue for branding"
+      },
+      "success": {
+        "DEFAULT": "#10B981",
+        "foreground": "#FFFFFF"
+      },
+      "destructive": {
+        "DEFAULT": "#EF4444",
+        "foreground": "#FFFFFF"
+      },
+      "background": "#FFFFFF",
+      "foreground": "#0F172A",
+      "card": "#FFFFFF",
+      "card_foreground": "#0F172A",
+      "border": "#E2E8F0",
+      "input": "#E2E8F0",
+      "ring": "#0F172A"
+    },
+    "dark_palette": {
+      "background": "#020617",
+      "foreground": "#F8FAFC",
+      "card": "#0F172A",
+      "card_foreground": "#F8FAFC",
+      "border": "#1E293B",
+      "input": "#1E293B",
+      "primary": "#F8FAFC",
+      "primary_foreground": "#0F172A",
+      "secondary": "#1E293B",
+      "secondary_foreground": "#F8FAFC",
+      "accent": "#F59E0B",
+      "accent_foreground": "#000000"
+    }
+  },
+  "layout": {
+    "grid_strategy": "Bento Mode B (High Density)",
+    "container": "container mx-auto p-4 md:p-6 lg:p-8 max-w-[1600px]",
+    "spacing": {
+      "section_gap": "gap-6",
+      "widget_gap": "gap-4",
+      "internal_padding": "p-4 md:p-6"
+    },
+    "border_radius": {
+      "default": "rounded-lg",
+      "card": "rounded-xl",
+      "button": "rounded-md"
+    }
+  },
+  "components": {
+    "cards": {
+      "style": "bg-card border border-border shadow-sm hover:border-accent/50 transition-colors",
+      "header": "font-heading font-bold text-lg mb-4"
+    },
+    "buttons": {
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm font-medium",
+      "accent": "bg-accent text-accent-foreground hover:bg-accent/90 font-bold tracking-wide uppercase text-xs",
+      "outline": "border-2 border-input bg-background hover:bg-accent hover:text-accent-foreground hover:border-accent"
+    },
+    "inputs": {
+      "style": "bg-background border-input focus:ring-2 focus:ring-brand focus:border-brand rounded-md font-mono text-sm"
+    },
+    "tables": {
+      "style": "w-full text-sm",
+      "header": "border-b h-10 text-left align-middle font-medium text-muted-foreground",
+      "row": "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+      "cell": "p-4 align-middle"
+    },
+    "badges": {
+      "style": "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+      "variants": {
+        "default": "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
+        "secondary": "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        "outline": "text-foreground"
+      }
+    }
+  },
+  "assets": {
+    "images": {
+      "drivers": [
+        {
+          "url": "https://images.pexels.com/photos/14797989/pexels-photo-14797989.jpeg",
+          "alt": "Driver 1 - Beard/Sunglasses",
+          "category": "driver_avatar"
+        },
+        {
+          "url": "https://images.pexels.com/photos/7540490/pexels-photo-7540490.jpeg",
+          "alt": "Driver 2 - Green Truck",
+          "category": "driver_avatar"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1622301581738-d4da1fc3b8b4?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb",
+          "alt": "Driver 3 - Denim",
+          "category": "driver_avatar"
+        },
+        {
+          "url": "https://images.unsplash.com/photo-1626712211690-8de4fe30177c?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb",
+          "alt": "Driver 4 - Orange Jacket",
+          "category": "driver_avatar"
+        }
+      ]
+    },
+    "icons": {
+      "library": "lucide-react",
+      "preferred_icons": {
+        "dashboard": "LayoutDashboard",
+        "truck": "Truck",
+        "users": "Users",
+        "mail": "Mail",
+        "file_text": "FileText",
+        "settings": "Settings",
+        "check": "CheckCircle2",
+        "alert": "AlertTriangle",
+        "parse": "Wand2"
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "1. Setup Fonts: Add the Google Fonts import to index.css immediately.",
+    "2. Configure Tailwind: Update tailwind.config.js with the colors and font families defined above.",
+    "3. Layout Structure: Create a Dashboard Layout with a sidebar (collapsible on mobile) and a main content area.",
+    "4. Mail Parse Feature: This is the 'Hero' interaction. Create a large textarea with a 'Paste Mail Content' placeholder. Use a 'Wand2' icon for the Parse button. Make it feel magical.",
+    "5. Driver Cards: Use the provided driver images for the driver selection/management section.",
+    "6. Tables: Use Shadcn Table component but strictly follow the 'High Density' spacing rules. No loose rows.",
+    "7. Mobile: Ensure all tables have a card-view fallback or horizontal scroll on mobile.",
+    "8. Language: STRICTLY keep all UI text in Danish as requested.",
+    "9. Theme: Implement the dark mode toggle, but default to system preference."
+  ],
+  "universal_guidelines": [
+    "Do not use gradients for backgrounds. Use solid colors or subtle noise textures.",
+    "Interactive elements must have clear hover/focus states.",
+    "Use 'sonner' for all toast notifications (success/error).",
+    "All functional elements must have data-testid attributes.",
+    "Input fields for time/dates/plates must use monospace font.",
+    "Avoid 'Inter' for headings. Use 'Chivo'.",
+    "Do not center-align the main app container."
+  ]
+}
