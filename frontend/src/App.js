@@ -1471,8 +1471,10 @@ function App() {
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       
-      const pdfTours = tours.filter(t => !t.is_pause);
-      const pdfPauses = tours.filter(t => t.is_pause);
+      // Use ALL tours from current report
+      const allTours = tours;
+      const pdfTours = allTours.filter(t => !t.is_pause);
+      const pdfPauses = allTours.filter(t => t.is_pause);
       const pdfCompletedTours = pdfTours.filter(t => t.completed);
       const pdfTotalWeight = pdfTours.reduce((sum, t) => sum + (t.weight || 0), 0);
       
