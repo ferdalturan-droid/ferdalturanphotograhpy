@@ -1216,9 +1216,9 @@ function App() {
   const totalWeight = activeTours.reduce((sum, t) => sum + (t.weight || 0), 0);
   const remainingTours = 20 - activeTours.length;
   
-  // Filter tours by plads if selected (show all tours if plads is empty or matches, or if "Alle" selected)
+  // Filter tours by plads - only show tours that belong to selected plads
   const filteredTours = selectedPlads 
-    ? tours.filter(t => !t.plads || t.plads === selectedPlads)
+    ? tours.filter(t => t.plads === selectedPlads)
     : tours;
   
   // Sort: group by facility first, then on_way, then normal, then completed
