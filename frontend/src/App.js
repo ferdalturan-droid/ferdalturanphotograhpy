@@ -1541,10 +1541,14 @@ function App() {
       // TOURS TABLE - Include ALL tours including completed
       const tableData = [];
       
-      // Sort: completed at end
+      // Sort: completed FIRST (at top), then pending tours
       const pdfSortedTours = [...tours].sort((a, b) => {
-        if (a.completed && !b.completed) return 1;
-        if (!a.completed && b.completed) return -1;
+        // Pauses at end
+        if (a.is_pause && !b.is_pause) return 1;
+        if (!a.is_pause && b.is_pause) return -1;
+        // Completed tours FIRST
+        if (a.completed && !b.completed) return -1;
+        if (!a.completed && b.completed) return 1;
         return 0;
       });
       
@@ -1598,8 +1602,8 @@ function App() {
           columnStyles: {
             0: { cellWidth: 35 }, 1: { cellWidth: 40 }, 2: { cellWidth: 50 },
             3: { cellWidth: 20 }, 4: { cellWidth: 18 }, 5: { cellWidth: 18 }
-          },
-          alternateRowStyles: { fillColor: [254, 242, 242] }
+          }
+          // Note: alternateRowStyles removed to preserve completed tour green background
         });
       }
       
