@@ -168,3 +168,317 @@ div[class*="Made with"],
     visibility: hidden !important;
     opacity: 0 !important;
 }
+
+/* ============= MOBILE RESPONSIVE STYLES ============= */
+
+/* Mobile viewport fix */
+@media screen and (max-width: 768px) {
+    body {
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Header mobile adjustments */
+    header {
+        padding: 0.75rem 1rem !important;
+    }
+    
+    header h1 {
+        font-size: 1rem !important;
+    }
+    
+    header .flex {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    /* Make admin button visible on mobile */
+    header button[title="Admin"],
+    header button:has(svg.lucide-shield) {
+        display: flex !important;
+        padding: 0.5rem !important;
+        min-width: 40px;
+        min-height: 40px;
+    }
+    
+    /* Stats cards mobile */
+    .stat-card,
+    section > div.grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem !important;
+    }
+    
+    .stat-card > div {
+        padding: 0.75rem !important;
+    }
+    
+    .stat-card .text-3xl,
+    .stat-card .text-4xl {
+        font-size: 1.25rem !important;
+    }
+    
+    /* Plads badges mobile - horizontal scroll */
+    .flex.flex-wrap.gap-2 {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        padding-bottom: 0.5rem;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .flex.flex-wrap.gap-2 > button {
+        flex-shrink: 0;
+        font-size: 0.75rem !important;
+        padding: 0.375rem 0.75rem !important;
+    }
+    
+    /* Driver selection mobile */
+    .relative > button {
+        font-size: 0.875rem !important;
+        padding: 0.5rem 0.75rem !important;
+    }
+    
+    /* Mail text area mobile */
+    textarea {
+        min-height: 100px !important;
+        font-size: 14px !important;
+    }
+    
+    /* Buttons row mobile */
+    .flex.flex-wrap.gap-3 {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+    }
+    
+    .flex.flex-wrap.gap-3 > button,
+    .flex.flex-wrap.gap-3 > div {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+    
+    /* Pause buttons container */
+    .flex.items-center.gap-1.bg-slate-100 {
+        width: 100% !important;
+        justify-content: space-between !important;
+    }
+    
+    /* Manual tour form mobile */
+    .grid.grid-cols-1.md\\:grid-cols-5,
+    .grid.grid-cols-1.md\\:grid-cols-6 {
+        gap: 0.5rem !important;
+    }
+    
+    .grid.grid-cols-1.md\\:grid-cols-5 input,
+    .grid.grid-cols-1.md\\:grid-cols-6 input {
+        font-size: 14px !important;
+        padding: 0.625rem !important;
+    }
+    
+    /* Tours table mobile - horizontal scroll */
+    .overflow-x-auto {
+        margin: 0 -1rem;
+        padding: 0 1rem;
+    }
+    
+    table {
+        font-size: 0.75rem !important;
+        min-width: 600px;
+    }
+    
+    table th,
+    table td {
+        padding: 0.5rem 0.375rem !important;
+        white-space: nowrap;
+    }
+    
+    table input {
+        width: 60px !important;
+        font-size: 0.75rem !important;
+        padding: 0.25rem !important;
+    }
+    
+    table select {
+        font-size: 0.75rem !important;
+        padding: 0.25rem !important;
+        min-width: 80px;
+    }
+    
+    table button {
+        padding: 0.25rem !important;
+    }
+    
+    table button svg {
+        width: 14px !important;
+        height: 14px !important;
+    }
+    
+    /* PDF button mobile */
+    button:has(svg.lucide-download) {
+        width: 100% !important;
+        padding: 1rem !important;
+    }
+    
+    /* Notes section mobile */
+    .p-4 textarea {
+        font-size: 14px !important;
+    }
+    
+    /* Section padding mobile */
+    section {
+        margin: 0.5rem !important;
+        border-radius: 0.75rem !important;
+    }
+    
+    section > div.p-4,
+    section > div.p-6 {
+        padding: 0.75rem !important;
+    }
+    
+    /* Main container mobile */
+    main.max-w-7xl {
+        padding: 0.5rem !important;
+    }
+}
+
+/* Extra small devices (phones in portrait) */
+@media screen and (max-width: 480px) {
+    header h1 {
+        font-size: 0.875rem !important;
+    }
+    
+    header p {
+        font-size: 0.625rem !important;
+    }
+    
+    .stat-card,
+    section > div.grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    
+    .stat-card .text-3xl,
+    .stat-card .text-4xl {
+        font-size: 1rem !important;
+    }
+    
+    .stat-card .text-sm {
+        font-size: 0.625rem !important;
+    }
+    
+    /* Tour table even smaller */
+    table {
+        font-size: 0.625rem !important;
+    }
+    
+    table input {
+        width: 50px !important;
+    }
+}
+
+/* Admin page mobile styles */
+@media screen and (max-width: 768px) {
+    /* Admin header mobile */
+    [data-testid="admin-page"] header {
+        padding: 0.75rem !important;
+    }
+    
+    [data-testid="admin-page"] header h1 {
+        font-size: 1rem !important;
+    }
+    
+    /* Admin tabs mobile - horizontal scroll */
+    [data-testid="admin-page"] .flex.gap-1 {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.25rem;
+    }
+    
+    [data-testid="admin-page"] .flex.gap-1 > button {
+        flex-shrink: 0;
+        font-size: 0.75rem !important;
+        padding: 0.5rem 0.75rem !important;
+        white-space: nowrap;
+    }
+    
+    /* Admin stats cards */
+    [data-testid="admin-page"] .grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    /* Schedule table mobile */
+    [data-testid="admin-page"] table {
+        min-width: 500px;
+    }
+    
+    [data-testid="admin-page"] table select {
+        min-width: 70px !important;
+        font-size: 0.625rem !important;
+    }
+    
+    /* Weekly view mobile - make scrollable */
+    [data-testid="admin-page"] .overflow-x-auto {
+        margin: 0;
+        padding: 0;
+    }
+    
+    /* Driver schedule header buttons */
+    [data-testid="admin-page"] .flex.flex-wrap.items-center.justify-between {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.75rem !important;
+    }
+    
+    [data-testid="admin-page"] .flex.flex-wrap.items-center.justify-between > div {
+        width: 100% !important;
+        justify-content: center !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+    
+    /* Plads management grid */
+    [data-testid="admin-page"] .grid-cols-2.md\\:grid-cols-3.lg\\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    /* History table */
+    [data-testid="admin-page"] .p-4.border-t.bg-slate-50 .grid-cols-3 {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 0.5rem !important;
+    }
+    
+    [data-testid="admin-page"] .p-4.border-t.bg-slate-50 .text-2xl {
+        font-size: 1rem !important;
+    }
+}
+
+/* Touch-friendly buttons */
+@media (hover: none) and (pointer: coarse) {
+    button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    select {
+        min-height: 44px;
+    }
+    
+    input[type="text"],
+    input[type="email"],
+    input[type="number"] {
+        min-height: 44px;
+        font-size: 16px !important; /* Prevents zoom on iOS */
+    }
+    
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* Landscape phone */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    header {
+        padding: 0.5rem 1rem !important;
+    }
+    
+    .stat-card > div {
+        padding: 0.5rem !important;
+    }
+}
