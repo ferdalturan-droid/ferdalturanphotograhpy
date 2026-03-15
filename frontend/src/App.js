@@ -2042,12 +2042,18 @@ function App() {
   const activeTours = tours.filter(t => !t.is_pause);
   const completedTours = activeTours.filter(t => t.completed);
   const totalWeight = activeTours.reduce((sum, t) => sum + (t.weight || 0), 0);
-  const remainingTours = 20 - activeTours.length;
   
   // Filter tours by plads - only show tours that belong to selected plads
   const filteredTours = selectedPlads 
     ? tours.filter(t => t.plads === selectedPlads)
     : tours;
+  
+  // Stats for filtered (selected plads) tours
+  const filteredActive = filteredTours.filter(t => !t.is_pause);
+  const filteredCompleted = filteredActive.filter(t => t.completed);
+  const filteredOnWay = filteredActive.filter(t => t.on_way && !t.completed);
+  const filteredWaiting = filteredActive.filter(t => !t.completed && !t.on_way);
+  const filteredWeight = filteredActive.reduce((sum, t) => sum + (t.weight || 0), 0);
   
   // Sort: group by facility first, then on_way, then normal, then completed
   const sortedTours = [...filteredTours].sort((a, b) => {
@@ -2298,15 +2304,42 @@ function App() {
         </div>
       )}
 
-      {/* Stats Bar */}
-      <div className="bg-white dark:bg-slate-800 border-b border-border shadow-sm py-4">
-        <div className="max-w-7xl mx-auto px-4 flex flex-wrap gap-3 justify-center md:justify-start">
-          <StatCard icon={Truck} value={completedTours.length} label="Færdig" color="success" subtext={`af ${activeTours.length}`} />
-          <StatCard icon={Weight} value={totalWeight} label="Total kg" color="accent" />
-          <StatCard icon={Clock} value={calculateTotalTime()} label="Arbejdstid" color="primary" />
-          <StatCard icon={FileText} value={remainingTours} label="Plads tilbage" color="info" />
+      {/* Stats Bar - shows filtered stats for selected plads */}
+      {selectedPlads && (
+      <div className="bg-white dark:bg-slate-800 border-b border-border shadow-sm py-4" data-testid="stats-bar">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex flex-wrap gap-3 items-center justify-center md:justify-between">
+            <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-2 rounded-lg">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                <span className="text-lg font-bold text-emerald-600">{filteredCompleted.length}</span>
+                <span className="text-sm text-emerald-600">færdig</span>
+              </div>
+              <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-950/30 px-4 py-2 rounded-lg">
+                <Truck className="w-5 h-5 text-yellow-600" />
+                <span className="text-lg font-bold text-yellow-600">{filteredOnWay.length}</span>
+                <span className="text-sm text-yellow-600">på vej</span>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-700 px-4 py-2 rounded-lg">
+                <Clock className="w-5 h-5 text-slate-500" />
+                <span className="text-lg font-bold">{filteredWaiting.length}</span>
+                <span className="text-sm text-muted-foreground">venter</span>
+              </div>
+              <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950/30 px-4 py-2 rounded-lg">
+                <Weight className="w-5 h-5 text-blue-600" />
+                <span className="text-lg font-bold text-blue-600">{filteredWeight}</span>
+                <span className="text-sm text-blue-600">kg</span>
+              </div>
+            </div>
+            <div className="text-center md:text-right">
+              <span className="text-2xl font-black text-red-600">{filteredCompleted.length}</span>
+              <span className="text-lg text-muted-foreground font-medium"> / {filteredActive.length}</span>
+              <div className="text-xs text-muted-foreground">{selectedPlads}</div>
+            </div>
+          </div>
         </div>
       </div>
+      )}
 
       <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         
@@ -2505,11 +2538,10 @@ function App() {
               <FileText className="w-5 h-5 text-red-600" /> 
               {selectedPlads ? `Ture - ${selectedPlads}` : "Dagens ture"}
             </h2>
-            <div className="text-sm">
-              <span className="font-bold text-emerald-600">{completedTours.length}</span>
-              <span className="text-muted-foreground"> færdig / </span>
-              <span className="font-bold">{activeTours.length}</span>
-              <span className="text-muted-foreground"> total</span>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full font-bold">{filteredCompleted.length} færdig</span>
+              <span className="text-muted-foreground">/</span>
+              <span className="font-bold">{filteredActive.length} total</span>
             </div>
           </div>
           <div className="overflow-x-auto">
