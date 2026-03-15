@@ -1834,11 +1834,13 @@ function App() {
   };
 
   const handleClearAll = async () => {
-    if (!window.confirm("Slet alle ture?")) return;
+    if (!selectedPlads) { toast.error("Vælg en plads først"); return; }
+    if (!window.confirm(`Slet alle ture i ${selectedPlads}?`)) return;
     try {
-      await axios.delete(`${API}/tours/report/${reportId}`);
-      setTours([]);
-      toast.success("Alle ture slettet");
+      const toursToDelete = tours.filter(t => t.plads === selectedPlads);
+      await Promise.all(toursToDelete.map(t => axios.delete(`${API}/tours/${t.id}`)));
+      setTours(tours.filter(t => t.plads !== selectedPlads));
+      toast.success(`Alle ture i ${selectedPlads} slettet`);
     } catch (e) {
       toast.error("Fejl");
     }
@@ -2496,7 +2498,7 @@ function App() {
             </div>
             <button onClick={handleClearAll}
               className="flex items-center gap-2 px-4 py-3 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-500">
-              <Trash2 className="w-5 h-5" /> Slet alt
+              <Trash2 className="w-5 h-5" /> Slet alt {selectedPlads ? `i ${selectedPlads}` : ""}
             </button>
           </div>
         </section>
