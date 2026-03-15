@@ -1461,12 +1461,26 @@ function App() {
   const [manualContainer, setManualContainer] = useState("");
   const [isSameDay, setIsSameDay] = useState(false);
   
+  // Dropdown states
+  const [showPladsDropdown, setShowPladsDropdown] = useState(false);
+  const [showPlateDropdown, setShowPlateDropdown] = useState(false);
+
   // Messages for driver
   const [driverMessages, setDriverMessages] = useState([]);
   const [showMessages, setShowMessages] = useState(false);
 
   // Get plads names from dynamic list
   const pladsOptions = pladsList.map(p => p.name);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowPladsDropdown(false);
+      setShowPlateDropdown(false);
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
   // ============= DRIVER SETUP =============
 
@@ -2181,27 +2195,63 @@ function App() {
           </div>
           <div className="p-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {/* Vehicle - editable */}
-              <div>
+              {/* Vehicle - dropdown with all plates */}
+              <div className="relative">
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Vogn nr.</label>
-                <input type="text" value={vehicleReg}
-                  onChange={(e) => handleChangePlate(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 border rounded-lg font-mono text-center"
-                  data-testid="vehicle-reg-input" />
+                <button onClick={(e) => { e.stopPropagation(); setShowPlateDropdown(!showPlateDropdown); setShowPladsDropdown(false); }}
+                  className="w-full px-3 py-2 border rounded-lg font-mono text-center bg-white dark:bg-slate-900 flex items-center justify-between hover:border-red-400"
+                  data-testid="vehicle-reg-input">
+                  <Car className="w-4 h-4 text-slate-400" />
+                  <span className={vehicleReg ? "font-medium" : "text-muted-foreground"}>{vehicleReg || "Vælg..."}</span>
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                </button>
+                {showPlateDropdown && (
+                  <div className="absolute z-20 w-full mt-1 bg-white dark:bg-slate-800 border rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                    {drivers.map(d => d.plate).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).map(plate => (
+                      <button key={plate} onClick={() => { handleChangePlate(plate); setShowPlateDropdown(false); }}
+                        className={`w-full px-4 py-2.5 text-left font-mono hover:bg-red-50 dark:hover:bg-slate-700 border-b border-slate-100 last:border-0 ${vehicleReg === plate ? "bg-red-50 text-red-600 font-bold" : ""}`}>
+                        {plate}
+                      </button>
+                    ))}
+                    <div className="p-2 border-t">
+                      <input type="text" value={vehicleReg}
+                        onChange={(e) => handleChangePlate(e.target.value.toUpperCase())}
+                        placeholder="Skriv manuelt..."
+                        className="w-full px-3 py-2 border rounded-lg font-mono text-sm"
+                        onClick={(e) => e.stopPropagation()} />
+                    </div>
+                  </div>
+                )}
               </div>
               
-              {/* Time */}
+              {/* Start time - click to record */}
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Start</label>
-                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
-                  onFocus={() => { if (!startTime) setStartTime(getCurrentTime()); }}
-                  className="w-full px-3 py-2 border rounded-lg font-mono" />
+                <button onClick={() => { if (!startTime || startTime === "07:00") setStartTime(getCurrentTime()); }}
+                  className={`w-full px-3 py-2 border rounded-lg font-mono text-center transition-all ${
+                    startTime && startTime !== "07:00"
+                      ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-bold"
+                      : "bg-white hover:bg-red-50 hover:border-red-300"
+                  }`}
+                  data-testid="start-time-btn">
+                  <Clock className="w-4 h-4 inline mr-1" />
+                  {startTime || "Klik for start"}
+                </button>
               </div>
+
+              {/* End time - click to record */}
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Slut</label>
-                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
-                  onFocus={() => { if (!endTime) setEndTime(getCurrentTime()); }}
-                  className="w-full px-3 py-2 border rounded-lg font-mono" />
+                <button onClick={() => { if (!endTime) setEndTime(getCurrentTime()); }}
+                  className={`w-full px-3 py-2 border rounded-lg font-mono text-center transition-all ${
+                    endTime
+                      ? "bg-emerald-50 border-emerald-300 text-emerald-700 font-bold"
+                      : "bg-white hover:bg-red-50 hover:border-red-300"
+                  }`}
+                  data-testid="end-time-btn">
+                  <Clock className="w-4 h-4 inline mr-1" />
+                  {endTime || "Klik for slut"}
+                </button>
               </div>
               
               {/* Date */}
@@ -2214,27 +2264,57 @@ function App() {
           </div>
         </section>
 
-        {/* Plads Selection */}
+        {/* Plads Selection - Dropdown */}
         <section className="bg-white dark:bg-slate-800 rounded-xl border border-border shadow-sm">
-          <div className="p-4 border-b border-border">
-            <h2 className="font-heading font-bold text-lg flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-red-600" /> Vælg Plads / Område
-            </h2>
-          </div>
           <div className="p-4">
-            <div className="flex flex-wrap gap-2">
-              <PladsButton name="Alle" isSelected={!selectedPlads} onClick={() => setSelectedPlads("")} 
-                tourCount={activeTours.length} />
-              {pladsOptions.map(plads => (
-                <PladsButton key={plads} name={plads} isSelected={selectedPlads === plads}
-                  onClick={() => setSelectedPlads(plads)} tourCount={getPladsTourCount(plads)} />
-              ))}
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Andet:</span>
-              <input type="text" value={customPlads}
-                onChange={(e) => { setCustomPlads(e.target.value); if (e.target.value) setSelectedPlads(""); }}
-                placeholder="Skriv plads..." className="px-3 py-1 border rounded-lg text-sm" />
+            <div className="relative">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
+                <MapPin className="w-4 h-4 inline mr-1 text-red-600" /> Vælg Plads / Område
+              </label>
+              <button onClick={(e) => { e.stopPropagation(); setShowPladsDropdown(!showPladsDropdown); setShowPlateDropdown(false); }}
+                className={`w-full px-4 py-3 border-2 rounded-xl text-left flex items-center justify-between transition-all ${
+                  selectedPlads 
+                    ? "border-red-500 bg-red-50 dark:bg-red-950/20" 
+                    : "border-slate-200 hover:border-red-400"
+                }`}
+                data-testid="plads-dropdown-btn">
+                <div className="flex items-center gap-2">
+                  <MapPin className={`w-5 h-5 ${selectedPlads ? "text-red-600" : "text-slate-400"}`} />
+                  <span className={`text-lg ${selectedPlads ? "font-bold text-red-700" : "text-muted-foreground"}`}>
+                    {selectedPlads || "Vælg genbrugsplads..."}
+                  </span>
+                  {selectedPlads && (
+                    <span className="px-2 py-0.5 bg-red-600 text-white text-xs rounded-full font-bold">
+                      {getPladsTourCount(selectedPlads)} ture
+                    </span>
+                  )}
+                </div>
+                <ChevronDown className={`w-5 h-5 transition-transform ${showPladsDropdown ? "rotate-180" : ""}`} />
+              </button>
+              {showPladsDropdown && (
+                <div className="absolute z-20 w-full mt-1 bg-white dark:bg-slate-800 border-2 border-red-200 rounded-xl shadow-xl max-h-64 overflow-y-auto">
+                  {pladsOptions.map(plads => {
+                    const count = getPladsTourCount(plads);
+                    return (
+                      <button key={plads} onClick={() => { setSelectedPlads(plads); setShowPladsDropdown(false); }}
+                        className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-red-50 dark:hover:bg-slate-700 border-b border-slate-100 last:border-0 transition-colors ${
+                          selectedPlads === plads ? "bg-red-50 dark:bg-red-950/30" : ""
+                        }`}
+                        data-testid={`plads-option-${plads.toLowerCase()}`}>
+                        <div className="flex items-center gap-2">
+                          <MapPin className={`w-4 h-4 ${selectedPlads === plads ? "text-red-600" : "text-slate-400"}`} />
+                          <span className={`font-medium ${selectedPlads === plads ? "text-red-700 font-bold" : ""}`}>{plads}</span>
+                        </div>
+                        {count > 0 && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                            selectedPlads === plads ? "bg-red-600 text-white" : "bg-slate-100 text-slate-600"
+                          }`}>{count}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </section>
