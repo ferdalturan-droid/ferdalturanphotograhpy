@@ -84,7 +84,8 @@ const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, dr
   const handleWeightSubmit = () => {
     const val = parseFloat(weight);
     if (val && val > 0) {
-      onUpdate(tour.id, { weight: val });
+      const currentTime = new Date().toTimeString().slice(0, 5);
+      onUpdate(tour.id, { weight: val, completed: true, on_way: false, time: currentTime });
     }
   };
 
@@ -344,6 +345,13 @@ const AdminPage = ({ onLogout }) => {
   }, [adminReportId]);
 
   useEffect(() => { if (adminReportId) fetchAdminTours(); }, [adminReportId, fetchAdminTours]);
+
+  // Auto-refresh admin tours every 10 seconds
+  useEffect(() => {
+    if (!adminReportId) return;
+    const interval = setInterval(() => { fetchAdminTours(); }, 10000);
+    return () => clearInterval(interval);
+  }, [adminReportId, fetchAdminTours]);
 
   // Admin mail parse handler
   const handleAdminParseMail = async () => {
@@ -794,7 +802,62 @@ const AdminPage = ({ onLogout }) => {
               </div>
             </div>
 
-            {/* Tours list for selected plads */}
+            {/* Activity Summary for this plads */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
+              <div className="p-4 border-b border-border">
+                <h2 className="font-heading font-bold text-lg flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-red-600" /> Overblik - {adminSelectedPlads}
+                </h2>
+              </div>
+              <div className="p-4">
+                {(() => {
+                  const pladsT = adminTours.filter(t => t.plads === adminSelectedPlads);
+                  const pTours = pladsT.filter(t => !t.is_pause);
+                  const pPauses = pladsT.filter(t => t.is_pause);
+                  const pCompleted = pTours.filter(t => t.completed);
+                  const pOnWay = pTours.filter(t => t.on_way);
+                  const pWaiting = pTours.filter(t => !t.completed && !t.on_way);
+                  const pTotalKg = pTours.reduce((s, t) => s + (t.weight || 0), 0);
+                  const completedTimes = pCompleted.map(t => t.time).filter(Boolean).sort();
+                  const firstDone = completedTimes[0] || "-";
+                  const lastDone = completedTimes[completedTimes.length - 1] || "-";
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                      <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold">{pTours.length}</div>
+                        <div className="text-xs text-muted-foreground">Total ture</div>
+                      </div>
+                      <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-emerald-600">{pCompleted.length}</div>
+                        <div className="text-xs text-emerald-600">Færdig</div>
+                      </div>
+                      <div className="bg-yellow-50 dark:bg-yellow-950/30 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-yellow-600">{pOnWay.length}</div>
+                        <div className="text-xs text-yellow-600">På vej</div>
+                      </div>
+                      <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-slate-500">{pWaiting.length}</div>
+                        <div className="text-xs text-muted-foreground">Venter</div>
+                      </div>
+                      <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-blue-600">{pTotalKg}</div>
+                        <div className="text-xs text-blue-600">Total kg</div>
+                      </div>
+                      <div className="bg-orange-50 dark:bg-orange-950/30 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-orange-600">{pPauses.length}</div>
+                        <div className="text-xs text-orange-600">Pauser</div>
+                      </div>
+                      <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-3 text-center">
+                        <div className="text-sm font-bold text-purple-600">{firstDone} - {lastDone}</div>
+                        <div className="text-xs text-purple-600">Første / Sidste</div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Detailed Tours list for selected plads */}
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
               <div className="p-4 border-b border-border flex items-center justify-between">
                 <h2 className="font-heading font-bold text-lg flex items-center gap-2">
@@ -812,20 +875,65 @@ const AdminPage = ({ onLogout }) => {
                       <th className="p-3 text-left">Modtageanlæg</th>
                       <th className="p-3 text-left">Adresse</th>
                       <th className="p-3 text-left">Container</th>
+                      <th className="p-3 text-center">Vægt</th>
+                      <th className="p-3 text-center">Tid</th>
                       <th className="p-3 text-center">Status</th>
                       <th className="p-3 text-center">Slet</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {adminTours.filter(t => t.plads === adminSelectedPlads && !t.is_pause).map(tour => (
-                      <tr key={tour.id} className={`border-b hover:bg-slate-50 dark:hover:bg-slate-900 ${tour.completed ? "bg-emerald-50 dark:bg-emerald-950/30" : ""}`}>
+                    {/* Show pauses first */}
+                    {adminTours.filter(t => t.plads === adminSelectedPlads && t.is_pause).map(tour => (
+                      <tr key={tour.id} className="border-b bg-orange-50 dark:bg-orange-950/20">
+                        <td colSpan="4" className="p-3 text-center font-bold text-orange-600">
+                          <Pause className="w-4 h-4 inline mr-1" /> PAUSE
+                        </td>
+                        <td className="p-3 text-center">-</td>
+                        <td className="p-3 text-center font-mono font-bold text-orange-600">{tour.time || "45 min"}</td>
+                        <td className="p-3 text-center">
+                          <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold">Pause</span>
+                        </td>
+                        <td className="p-3 text-center">
+                          <button onClick={() => handleAdminDeleteTour(tour.id)} className="p-1.5 text-red-500 hover:bg-red-100 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Regular tours sorted: completed at bottom */}
+                    {adminTours.filter(t => t.plads === adminSelectedPlads && !t.is_pause)
+                      .sort((a, b) => {
+                        if (a.on_way && !b.on_way) return -1;
+                        if (!a.on_way && b.on_way) return 1;
+                        if (a.completed && !b.completed) return 1;
+                        if (!a.completed && b.completed) return -1;
+                        return (a.time || "").localeCompare(b.time || "");
+                      })
+                      .map(tour => (
+                      <tr key={tour.id} className={`border-b hover:bg-slate-50 dark:hover:bg-slate-900 ${
+                        tour.completed ? "bg-emerald-50 dark:bg-emerald-950/30" 
+                        : tour.on_way ? "bg-yellow-50 dark:bg-yellow-950/20" 
+                        : ""
+                      }`}>
                         <td className="p-3 font-medium">{tour.fraction}</td>
                         <td className="p-3 text-sm">{tour.facility}</td>
                         <td className="p-3 text-sm">{tour.address}</td>
                         <td className="p-3 font-mono text-sm">{tour.container}</td>
+                        <td className="p-3 text-center font-mono font-bold">
+                          {tour.weight ? <span className="text-emerald-600">{tour.weight} kg</span> : <span className="text-slate-300">-</span>}
+                        </td>
+                        <td className="p-3 text-center font-mono">
+                          {tour.time ? <span className="font-bold">{tour.time}</span> : <span className="text-slate-300">-</span>}
+                        </td>
                         <td className="p-3 text-center">
                           {tour.completed ? (
-                            <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">Færdig {tour.weight ? `(${tour.weight}kg)` : ""}</span>
+                            <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">
+                              Færdig
+                            </span>
+                          ) : tour.on_way ? (
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">
+                              På vej
+                            </span>
                           ) : (
                             <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-full text-xs">Venter</span>
                           )}
@@ -837,9 +945,9 @@ const AdminPage = ({ onLogout }) => {
                         </td>
                       </tr>
                     ))}
-                    {adminTours.filter(t => t.plads === adminSelectedPlads && !t.is_pause).length === 0 && (
+                    {adminTours.filter(t => t.plads === adminSelectedPlads).length === 0 && (
                       <tr>
-                        <td colSpan="6" className="p-8 text-center text-muted-foreground">
+                        <td colSpan="8" className="p-8 text-center text-muted-foreground">
                           Ingen ture i {adminSelectedPlads}. Indsæt fra mail ovenfor.
                         </td>
                       </tr>
@@ -2073,11 +2181,27 @@ function App() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Vogn nr. / Plade</label>
+                  {/* Show registered plates as buttons */}
+                  {drivers.length > 0 && (
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      {drivers.map(d => d.plate).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).map(plate => (
+                        <button key={plate} onClick={() => setSetupPlate(plate)}
+                          className={`px-3 py-2.5 rounded-lg font-mono text-sm border-2 transition-all ${
+                            setupPlate === plate 
+                              ? "border-red-500 bg-red-50 text-red-700 font-bold" 
+                              : "border-slate-200 hover:border-red-300 hover:bg-red-50"
+                          }`}
+                          data-testid={`setup-plate-option-${plate}`}>
+                          {plate}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <input type="text" value={setupPlate} onChange={(e) => setSetupPlate(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === "Enter" && handleSetupPlate()}
-                    placeholder="F.eks. AB 12 345"
+                    placeholder="Eller skriv manuelt..."
                     className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-lg font-mono text-center tracking-wider focus:border-red-500 focus:ring-0 outline-none"
-                    data-testid="setup-plate-input" autoFocus />
+                    data-testid="setup-plate-input" />
                 </div>
                 <button onClick={handleSetupPlate}
                   className="w-full py-3 bg-red-600 text-white rounded-xl font-bold text-lg hover:bg-red-700 transition-colors"
