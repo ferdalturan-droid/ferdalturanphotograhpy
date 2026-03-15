@@ -84,7 +84,8 @@ const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, dr
   const handleWeightSubmit = () => {
     const val = parseFloat(weight);
     if (val && val > 0) {
-      onUpdate(tour.id, { weight: val, completed: true, on_way: false });
+      const currentTime = new Date().toTimeString().slice(0, 5);
+      onUpdate(tour.id, { weight: val, completed: true, on_way: false, time: tour.time || currentTime });
     }
   };
 
@@ -236,7 +237,15 @@ const AdminPage = ({ onLogout }) => {
   const [pladsList, setPladsList] = useState([]);
   const [newPladsName, setNewPladsName] = useState("");
   const [reportHistory, setReportHistory] = useState([]);
-  const [activeTab, setActiveTab] = useState("schedule"); // schedule, drivers, plads, history
+  const [activeTab, setActiveTab] = useState("tours"); // tours, schedule, drivers, plads, history
+  
+  // Tour management state (moved from driver page)
+  const [adminSelectedPlads, setAdminSelectedPlads] = useState("");
+  const [mailText, setMailText] = useState("");
+  const [parsing, setParsing] = useState(false);
+  const [adminTours, setAdminTours] = useState([]);
+  const [adminReportId, setAdminReportId] = useState("");
+  const [adminReportDate] = useState(new Date().toISOString().split("T")[0]);
   
   // Driver schedule state - each driver's assigned plads for today
   const [driverSchedule, setDriverSchedule] = useState({}); // { driverId: "pladsName" or "FRI" }
@@ -305,6 +314,102 @@ const AdminPage = ({ onLogout }) => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { fetchWeeklySchedule(); }, [fetchWeeklySchedule]);
+
+  // Initialize admin report for today
+  useEffect(() => {
+    const initAdminReport = async () => {
+      try {
+        const existingRes = await axios.get(`${API}/reports?date=${adminReportDate}`);
+        if (existingRes.data && existingRes.data.length > 0) {
+          setAdminReportId(existingRes.data[0].id);
+        } else {
+          const res = await axios.post(`${API}/reports`, { report_date: adminReportDate, start_time: "07:00" });
+          setAdminReportId(res.data.id);
+        }
+      } catch (e) {
+        console.error("Error initializing admin report:", e);
+      }
+    };
+    initAdminReport();
+  }, [adminReportDate]);
+
+  // Fetch tours for admin when report or plads changes
+  const fetchAdminTours = useCallback(async () => {
+    if (!adminReportId) return;
+    try {
+      const res = await axios.get(`${API}/tours?report_id=${adminReportId}`);
+      setAdminTours(res.data);
+    } catch (e) {
+      console.error("Error fetching admin tours:", e);
+    }
+  }, [adminReportId]);
+
+  useEffect(() => { if (adminReportId) fetchAdminTours(); }, [adminReportId, fetchAdminTours]);
+
+  // Admin mail parse handler
+  const handleAdminParseMail = async () => {
+    if (!mailText.trim()) { toast.error("Indsæt mail tekst først"); return; }
+    if (!adminSelectedPlads) { toast.error("Vælg en genbrugsplads først"); return; }
+    
+    setParsing(true);
+    try {
+      const res = await axios.post(`${API}/parse-mail`, { text: mailText, report_id: adminReportId });
+      
+      if (res.data.success && res.data.tours.length > 0) {
+        const sortedTours = [...res.data.tours].sort((a, b) => {
+          if (a.facility === b.facility) return a.address.localeCompare(b.address);
+          return a.facility.localeCompare(b.facility);
+        });
+        
+        const toursToCreate = sortedTours.map(t => ({
+          ...t,
+          plads: adminSelectedPlads,
+          driver_id: "",
+          driver_name: "",
+          report_id: adminReportId
+        }));
+        
+        await axios.post(`${API}/tours/bulk`, toursToCreate);
+        setMailText("");
+        fetchAdminTours();
+        
+        const grouped = res.data.grouped_by_facility;
+        const facilityCount = Object.keys(grouped).length;
+        toast.success(`${res.data.count} ture tilføjet til ${adminSelectedPlads}! (${facilityCount} anlæg)`);
+      } else {
+        toast.error("Kunne ikke parse mail");
+      }
+    } catch (e) {
+      toast.error("Fejl ved parsing af mail");
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  // Admin delete tour
+  const handleAdminDeleteTour = async (tourId) => {
+    try {
+      await axios.delete(`${API}/tours/${tourId}`);
+      setAdminTours(adminTours.filter(t => t.id !== tourId));
+      toast.success("Tur slettet");
+    } catch (e) {
+      toast.error("Fejl ved sletning");
+    }
+  };
+
+  // Admin clear all tours for selected plads
+  const handleAdminClearPlads = async () => {
+    if (!adminSelectedPlads) return;
+    if (!window.confirm(`Slet alle ture i ${adminSelectedPlads}?`)) return;
+    try {
+      const toursToDelete = adminTours.filter(t => t.plads === adminSelectedPlads);
+      await Promise.all(toursToDelete.map(t => axios.delete(`${API}/tours/${t.id}`)));
+      fetchAdminTours();
+      toast.success(`Alle ture i ${adminSelectedPlads} slettet`);
+    } catch (e) {
+      toast.error("Fejl ved sletning");
+    }
+  };
 
   const handleAddDriver = async () => {
     if (!newDriver.name || !newDriver.plate) {
@@ -565,10 +670,16 @@ const AdminPage = ({ onLogout }) => {
       {/* Tab Navigation */}
       <div className="bg-white dark:bg-slate-800 border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-1">
+          <div className="flex gap-1 overflow-x-auto">
+            <button 
+              onClick={() => setActiveTab("tours")}
+              className={`px-4 py-3 font-medium transition-colors whitespace-nowrap ${activeTab === "tours" ? "text-red-600 border-b-2 border-red-600" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <FileText className="w-4 h-4 inline mr-2" /> Ture
+            </button>
             <button 
               onClick={() => setActiveTab("schedule")}
-              className={`px-4 py-3 font-medium transition-colors ${activeTab === "schedule" ? "text-red-600 border-b-2 border-red-600" : "text-slate-500 hover:text-slate-700"}`}
+              className={`px-4 py-3 font-medium transition-colors whitespace-nowrap ${activeTab === "schedule" ? "text-red-600 border-b-2 border-red-600" : "text-slate-500 hover:text-slate-700"}`}
             >
               <Calendar className="w-4 h-4 inline mr-2" /> Planlægning
             </button>
@@ -623,6 +734,132 @@ const AdminPage = ({ onLogout }) => {
             </div>
           </div>
         </section>
+
+        {/* Tours Management Tab - Admin assigns tours by plads */}
+        {activeTab === "tours" && (
+        <section className="space-y-6">
+          {/* Plads selection for tours */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-4">
+            <h2 className="font-heading font-bold text-lg flex items-center gap-2 mb-4">
+              <MapPin className="w-5 h-5 text-red-600" /> Vælg Genbrugsplads
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {pladsList.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setAdminSelectedPlads(p.name)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    adminSelectedPlads === p.name
+                      ? "bg-red-600 text-white shadow-lg scale-105"
+                      : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:border-red-400"
+                  }`}
+                  data-testid={`admin-plads-${p.name.toLowerCase()}`}
+                >
+                  {p.name}
+                  <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs font-bold ${
+                    adminSelectedPlads === p.name ? "bg-white text-red-600" : "bg-red-600 text-white"
+                  }`}>
+                    {adminTours.filter(t => t.plads === p.name && !t.is_pause).length}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {adminSelectedPlads && (
+          <>
+            {/* Mail Parse */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl border-2 border-red-500/50 shadow-lg">
+              <div className="p-4 border-b border-border bg-red-50 dark:bg-red-950/20 rounded-t-xl">
+                <h2 className="font-heading font-bold text-lg flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-red-600" /> Indsæt ture fra mail - {adminSelectedPlads}
+                </h2>
+              </div>
+              <div className="p-4">
+                <textarea value={mailText} onChange={(e) => setMailText(e.target.value)}
+                  placeholder="Kopier ture fra mail her (tab-separated format)..."
+                  className="w-full h-40 px-4 py-3 bg-slate-50 dark:bg-slate-900 border rounded-lg font-mono text-sm resize-none"
+                  data-testid="admin-mail-textarea" />
+                <div className="flex flex-wrap gap-3 mt-4">
+                  <button onClick={handleAdminParseMail} disabled={parsing}
+                    className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 disabled:opacity-50"
+                    data-testid="admin-parse-mail-btn">
+                    <Wand2 className="w-5 h-5" /> {parsing ? "Parser..." : "+ Tilføj ture"}
+                  </button>
+                  <button onClick={handleAdminClearPlads}
+                    className="flex items-center gap-2 px-4 py-3 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-500"
+                    data-testid="admin-clear-plads-btn">
+                    <Trash2 className="w-5 h-5" /> Slet alle i {adminSelectedPlads}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Tours list for selected plads */}
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg">
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <h2 className="font-heading font-bold text-lg flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-red-600" /> Ture i {adminSelectedPlads}
+                </h2>
+                <span className="text-sm font-bold text-muted-foreground">
+                  {adminTours.filter(t => t.plads === adminSelectedPlads && !t.is_pause).length} ture
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-900 border-b">
+                      <th className="p-3 text-left">Fraktion</th>
+                      <th className="p-3 text-left">Modtageanlæg</th>
+                      <th className="p-3 text-left">Adresse</th>
+                      <th className="p-3 text-left">Container</th>
+                      <th className="p-3 text-center">Status</th>
+                      <th className="p-3 text-center">Slet</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminTours.filter(t => t.plads === adminSelectedPlads && !t.is_pause).map(tour => (
+                      <tr key={tour.id} className={`border-b hover:bg-slate-50 dark:hover:bg-slate-900 ${tour.completed ? "bg-emerald-50 dark:bg-emerald-950/30" : ""}`}>
+                        <td className="p-3 font-medium">{tour.fraction}</td>
+                        <td className="p-3 text-sm">{tour.facility}</td>
+                        <td className="p-3 text-sm">{tour.address}</td>
+                        <td className="p-3 font-mono text-sm">{tour.container}</td>
+                        <td className="p-3 text-center">
+                          {tour.completed ? (
+                            <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">Færdig {tour.weight ? `(${tour.weight}kg)` : ""}</span>
+                          ) : (
+                            <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-full text-xs">Venter</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          <button onClick={() => handleAdminDeleteTour(tour.id)} className="p-1.5 text-red-500 hover:bg-red-100 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {adminTours.filter(t => t.plads === adminSelectedPlads && !t.is_pause).length === 0 && (
+                      <tr>
+                        <td colSpan="6" className="p-8 text-center text-muted-foreground">
+                          Ingen ture i {adminSelectedPlads}. Indsæt fra mail ovenfor.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+          )}
+
+          {!adminSelectedPlads && (
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-12 text-center">
+              <MapPin className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+              <p className="text-muted-foreground text-lg">Vælg en genbrugsplads for at tilføje ture</p>
+            </div>
+          )}
+        </section>
+        )}
 
         {/* Schedule / Planning Tab */}
         {activeTab === "schedule" && (
@@ -1204,10 +1441,6 @@ function App() {
   const [customPlads, setCustomPlads] = useState("");
   const [notes, setNotes] = useState("");
   
-  // Mail parse state
-  const [mailText, setMailText] = useState("");
-  const [parsing, setParsing] = useState(false);
-  
   // Manual tour form
   const [manualFraction, setManualFraction] = useState("");
   const [manualFacility, setManualFacility] = useState("");
@@ -1345,48 +1578,6 @@ function App() {
     }
   };
 
-  const handleParseMail = async () => {
-    if (!mailText.trim()) { toast.error("Indsæt mail tekst først"); return; }
-    
-    setParsing(true);
-    try {
-      const res = await axios.post(`${API}/parse-mail`, { text: mailText, report_id: reportId });
-      
-      if (res.data.success && res.data.tours.length > 0) {
-        // Sort tours by facility to group same facilities together
-        const sortedTours = [...res.data.tours].sort((a, b) => {
-          if (a.facility === b.facility) {
-            return a.address.localeCompare(b.address);
-          }
-          return a.facility.localeCompare(b.facility);
-        });
-        
-        const toursToCreate = sortedTours.map(t => ({
-          ...t,
-          plads: selectedPlads,
-          driver_id: selectedDriver?.id || "",
-          driver_name: driverName,
-          report_id: reportId
-        }));
-        
-        const createdRes = await axios.post(`${API}/tours/bulk`, toursToCreate);
-        setTours([...tours, ...createdRes.data]);
-        setMailText("");
-        
-        // Show grouped summary
-        const grouped = res.data.grouped_by_facility;
-        const facilityCount = Object.keys(grouped).length;
-        toast.success(`${res.data.count} ture tilføjet! (${facilityCount} anlæg)`);
-      } else {
-        toast.error("Kunne ikke parse mail");
-      }
-    } catch (e) {
-      toast.error("Fejl ved parsing af mail");
-    } finally {
-      setParsing(false);
-    }
-  };
-
   const handleAddManualTour = async () => {
     if (!manualFraction || !manualFacility) { toast.error("Udfyld fraktion og modtageanlæg!"); return; }
     
@@ -1454,7 +1645,13 @@ function App() {
   const handleToggleComplete = async (tourId) => {
     const tour = tours.find(t => t.id === tourId);
     if (!tour) return;
-    await handleUpdateTour(tourId, { completed: !tour.completed, on_way: false });
+    const nowCompleting = !tour.completed;
+    const currentTime = new Date().toTimeString().slice(0, 5);
+    await handleUpdateTour(tourId, { 
+      completed: nowCompleting, 
+      on_way: false,
+      time: nowCompleting ? (tour.time || currentTime) : tour.time
+    });
   };
 
   const handleDeleteTour = async (tourId) => {
@@ -1551,42 +1748,110 @@ function App() {
       }
       doc.text(totalTimeStr, pageWidth / 2 + 40, 66);
       
-      // STATS BOX (summary only, no table)
-      const statsY = 90;
+      // STATS BOX
+      const statsY = 82;
       doc.setDrawColor(220, 38, 38);
       doc.setLineWidth(0.5);
-      doc.rect(14, statsY, pageWidth - 28, 20);
+      doc.rect(14, statsY, pageWidth - 28, 16);
       
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(220, 38, 38);
-      doc.text("TURE:", 18, statsY + 13);
-      doc.text("FÆRDIG:", 55, statsY + 13);
-      doc.text("TOTAL KG:", 100, statsY + 13);
-      doc.text("PAUSE:", 150, statsY + 13);
+      doc.text("TURE:", 18, statsY + 11);
+      doc.text("FÆRDIG:", 55, statsY + 11);
+      doc.text("TOTAL KG:", 100, statsY + 11);
+      doc.text("PAUSE:", 150, statsY + 11);
       
       doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "normal");
-      doc.text(`${pdfTours.length}`, 35, statsY + 13);
-      doc.text(`${pdfCompletedTours.length}`, 75, statsY + 13);
-      doc.text(`${pdfTotalWeight}`, 125, statsY + 13);
-      doc.text(`${pdfPauses.length}`, 167, statsY + 13);
+      doc.text(`${pdfTours.length}`, 35, statsY + 11);
+      doc.text(`${pdfCompletedTours.length}`, 75, statsY + 11);
+      doc.text(`${pdfTotalWeight}`, 125, statsY + 11);
+      doc.text(`${pdfPauses.length}`, 167, statsY + 11);
+      
+      // COMPLETED TOURS LIST - sorted by time
+      let currentY = statsY + 26;
+      
+      const sortedCompleted = [...pdfCompletedTours].sort((a, b) => {
+        return (a.time || "99:99").localeCompare(b.time || "99:99");
+      });
+      
+      if (sortedCompleted.length > 0) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(220, 38, 38);
+        doc.text("FULDFØRTE TURE:", 14, currentY);
+        currentY += 6;
+        
+        // Table header
+        doc.setFillColor(220, 38, 38);
+        doc.rect(14, currentY, pageWidth - 28, 7, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.text("NR", 16, currentY + 5);
+        doc.text("TID", 26, currentY + 5);
+        doc.text("FRAKTION", 44, currentY + 5);
+        doc.text("MODTAGEANLÆG", 80, currentY + 5);
+        doc.text("ADRESSE", 125, currentY + 5);
+        doc.text("VÆGT", 178, currentY + 5);
+        currentY += 9;
+        
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+        
+        sortedCompleted.forEach((tour, idx) => {
+          // Check if we need a new page
+          if (currentY > pageHeight - 25) {
+            doc.addPage();
+            currentY = 15;
+          }
+          
+          const rowBg = idx % 2 === 0;
+          if (rowBg) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(14, currentY - 4, pageWidth - 28, 7, 'F');
+          }
+          
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${idx + 1}`, 16, currentY);
+          doc.text(tour.time || "-", 26, currentY);
+          doc.text((tour.fraction || "").substring(0, 18), 44, currentY);
+          doc.text((tour.facility || "").substring(0, 22), 80, currentY);
+          doc.text((tour.address || "").substring(0, 28), 125, currentY);
+          doc.setFont("helvetica", "bold");
+          doc.text(tour.weight ? `${tour.weight} kg` : "-", 178, currentY);
+          doc.setFont("helvetica", "normal");
+          currentY += 7;
+        });
+      }
       
       // NOTES
       if (notes) {
+        currentY += 5;
+        if (currentY > pageHeight - 30) {
+          doc.addPage();
+          currentY = 15;
+        }
         doc.setFont("helvetica", "bold");
         doc.setTextColor(220, 38, 38);
-        doc.text("BEMÆRKNINGER:", 18, statsY + 30);
+        doc.setFontSize(9);
+        doc.text("BEMÆRKNINGER:", 18, currentY);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(8);
-        doc.text(doc.splitTextToSize(notes, pageWidth - 40), 18, statsY + 36);
+        doc.text(doc.splitTextToSize(notes, pageWidth - 40), 18, currentY + 6);
       }
       
-      // FOOTER
-      doc.setFontSize(7);
-      doc.setTextColor(128, 128, 128);
-      doc.text(`Genereret: ${new Date().toLocaleString("da-DK")} | KORKMAN2 - ILK Company ApS`, pageWidth / 2, pageHeight - 8, { align: "center" });
+      // FOOTER on last page
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(128, 128, 128);
+        doc.text(`Genereret: ${new Date().toLocaleString("da-DK")} | KORKMAN2 - ILK Company ApS | Side ${i}/${totalPages}`, pageWidth / 2, pageHeight - 8, { align: "center" });
+      }
       
       doc.save(`korselsrapport_${formattedDate}_${driverName || "rapport"}.pdf`);
       toast.success("PDF genereret!");
@@ -1858,42 +2123,28 @@ function App() {
           </div>
         </section>
 
-        {/* Mail Parse */}
-        <section className="bg-white dark:bg-slate-800 rounded-xl border-2 border-red-500/50 shadow-lg">
-          <div className="p-4 border-b border-border bg-red-50 dark:bg-red-950/20 rounded-t-xl">
-            <h2 className="font-heading font-bold text-lg flex items-center gap-2">
-              <Mail className="w-5 h-5 text-red-600" /> Indsæt ture fra mail
-            </h2>
-          </div>
-          <div className="p-4">
-            <textarea value={mailText} onChange={(e) => setMailText(e.target.value)}
-              placeholder="Kopier ture fra mail her (tab-separated format)..."
-              className="w-full h-40 px-4 py-3 bg-slate-50 dark:bg-slate-900 border rounded-lg font-mono text-sm resize-none" />
-            <div className="flex flex-wrap gap-3 mt-4">
-              <button onClick={handleParseMail} disabled={parsing}
-                className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 disabled:opacity-50">
-                <Wand2 className="w-5 h-5" /> {parsing ? "Parser..." : "+ Tilføj ture"}
+        {/* Actions Bar - Pause + Clear */}
+        <section className="bg-white dark:bg-slate-800 rounded-xl border border-border shadow-sm">
+          <div className="p-4 flex flex-wrap gap-3 items-center">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+              <span className="px-2 text-sm text-muted-foreground">Pause:</span>
+              <button onClick={() => handleAddPause(15)}
+                className="px-3 py-2 bg-white dark:bg-slate-600 rounded-md font-medium hover:bg-slate-200 dark:hover:bg-slate-500 text-sm">
+                15 min
               </button>
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-                <span className="px-2 text-sm text-muted-foreground">Pause:</span>
-                <button onClick={() => handleAddPause(15)}
-                  className="px-3 py-2 bg-white dark:bg-slate-600 rounded-md font-medium hover:bg-slate-200 dark:hover:bg-slate-500 text-sm">
-                  15 min
-                </button>
-                <button onClick={() => handleAddPause(30)}
-                  className="px-3 py-2 bg-white dark:bg-slate-600 rounded-md font-medium hover:bg-slate-200 dark:hover:bg-slate-500 text-sm">
-                  30 min
-                </button>
-                <button onClick={() => handleAddPause(45)}
-                  className="px-3 py-2 bg-white dark:bg-slate-600 rounded-md font-medium hover:bg-slate-200 dark:hover:bg-slate-500 text-sm">
-                  45 min
-                </button>
-              </div>
-              <button onClick={handleClearAll}
-                className="flex items-center gap-2 px-4 py-3 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-500">
-                <Trash2 className="w-5 h-5" /> Slet alt
+              <button onClick={() => handleAddPause(30)}
+                className="px-3 py-2 bg-white dark:bg-slate-600 rounded-md font-medium hover:bg-slate-200 dark:hover:bg-slate-500 text-sm">
+                30 min
+              </button>
+              <button onClick={() => handleAddPause(45)}
+                className="px-3 py-2 bg-white dark:bg-slate-600 rounded-md font-medium hover:bg-slate-200 dark:hover:bg-slate-500 text-sm">
+                45 min
               </button>
             </div>
+            <button onClick={handleClearAll}
+              className="flex items-center gap-2 px-4 py-3 bg-slate-600 text-white rounded-lg font-medium hover:bg-slate-500">
+              <Trash2 className="w-5 h-5" /> Slet alt
+            </button>
           </div>
         </section>
 
