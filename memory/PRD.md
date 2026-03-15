@@ -13,40 +13,25 @@ Logistics/driving report application for ILK Company ApS. Features include drive
 2. Tour management (admin adds via mail, driver adds manually)
 3. PDF report generation (summary + completed tours sorted by time)
 4. Admin panel with 5 tabs: Ture, Planlægning, Chauffører, Genbrugsplads, Historik
-5. Message system between admin and drivers
-6. Pause options (15/30/45 min)
-7. Automatic plads selection based on driver's area
-8. Facility-based tour grouping
-9. Same-address tour visual grouping (red border)
-10. Admin Genbrugsplads management
-11. Report history view (last 30 days)
-12. Plads-based tour filtering
-13. Daily and weekly scheduling with email notifications (mailto:)
-14. FRI (day off) option for drivers
-15. Auto-time recording on tour completion and weight entry
-16. Admin tour management by genbrugsplads (mail parse moved to admin)
+5. Pause options (15/30/45 min)
+6. Automatic plads selection based on driver's area
+7. Tour workflow: På vej (yellow/top) → weight → OK (green/bottom)
+8. Admin tour management by genbrugsplads (mail parse)
+9. Auto-refresh tours every 10 seconds (driver sees admin-added tours)
+10. Auto-time recording on tour completion
+11. Daily and weekly scheduling with email notifications (mailto:)
 
 ## What's Been Implemented
-- [2026-03-13] Bug fix: initReport function checks for existing day's report
-- [2026-03-13] Feature: Pause buttons (15/30/45 min)
-- [2026-03-13] Feature: Auto plads selection when driver selected
-- [2026-03-13] Feature: Tours sorted by facility
-- [2026-03-13] Feature: Same-address tours marked with red left border
-- [2026-03-13] Feature: Admin panel with tabs
-- [2026-03-13] Feature: Dynamic plads management
-- [2026-03-13] Feature: Report history view (last 30 days)
-- [2026-03-13] Bug fix: Plads filtering
-- [2026-03-13] Bug fix: "Slet alt" button
-- [2026-03-13] Feature: Daily/Weekly scheduling with mail
+- [2026-03-13] All initial features (see CHANGELOG.md for details)
 - [2026-03-15] Bug fix: PDF generation (removed broken jspdf-autotable)
-- [2026-03-15] Bug fix: PDF format - summary only matching user's example
-- [2026-03-15] Bug fix: Weight input only updates on Enter/blur
 - [2026-03-15] Feature: PDF includes completed tours sorted by time
-- [2026-03-15] Feature: Admin "Ture" tab - tour management by genbrugsplads
-- [2026-03-15] Feature: Mail parse moved from driver page to admin page
+- [2026-03-15] Feature: Admin "Ture" tab with genbrugsplads tour management
+- [2026-03-15] Feature: Mail parse moved from driver to admin page
 - [2026-03-15] Feature: Auto-record time on tour completion
-- [2026-03-15] Feature: Auto-record time on weight entry
-- [2026-03-15] Cleanup: Driver page simplified (mail section removed)
+- [2026-03-15] Bug fix: Weight entry no longer auto-completes tour
+- [2026-03-15] Bug fix: Tour workflow - På vej (yellow/top), OK (green/bottom)
+- [2026-03-15] Feature: Auto-refresh tours every 10 seconds
+- [2026-03-15] Fix: TourUpdate model - all fields Optional for partial updates
 
 ## Database Collections
 - drivers, tours, reports, messages, plads, schedules
@@ -62,6 +47,6 @@ Logistics/driving report application for ILK Company ApS. Features include drive
 ### P0 - ALL RESOLVED
 ### P1 - ALL RESOLVED
 ### P2 (Future)
-- Excel/CSV export for reports
-- Driver performance analytics dashboard
+- Excel/CSV export
+- Driver performance analytics
 - Refactor App.js into smaller components
