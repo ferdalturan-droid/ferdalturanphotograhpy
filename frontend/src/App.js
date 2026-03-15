@@ -3,7 +3,6 @@ import "@/App.css";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { 
   Truck, Users, Mail, FileText, CheckCircle2, MapPin,
   Wand2, Plus, Trash2, Clock, Weight, X, 
@@ -1485,10 +1484,8 @@ function App() {
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       
-      // Use ALL tours from current report
-      const allTours = tours;
-      const pdfTours = allTours.filter(t => !t.is_pause);
-      const pdfPauses = allTours.filter(t => t.is_pause);
+      const pdfTours = tours.filter(t => !t.is_pause);
+      const pdfPauses = tours.filter(t => t.is_pause);
       const pdfCompletedTours = pdfTours.filter(t => t.completed);
       const pdfTotalWeight = pdfTours.reduce((sum, t) => sum + (t.weight || 0), 0);
       
@@ -1554,103 +1551,36 @@ function App() {
       }
       doc.text(totalTimeStr, pageWidth / 2 + 40, 66);
       
-      // TOURS TABLE - Include ALL tours including completed
-      const tableData = [];
-      
-      // Sort: completed FIRST (at top), then pending tours
-      const pdfSortedTours = [...tours].sort((a, b) => {
-        // Pauses at end
-        if (a.is_pause && !b.is_pause) return 1;
-        if (!a.is_pause && b.is_pause) return -1;
-        // Completed tours FIRST
-        if (a.completed && !b.completed) return -1;
-        if (!a.completed && b.completed) return 1;
-        return 0;
-      });
-      
-      pdfSortedTours.forEach((tour) => {
-        if (tour.is_pause) {
-          tableData.push([
-            { content: "PAUSE", colSpan: 4, styles: { fillColor: [241, 245, 249], fontStyle: 'bold', halign: 'center' } },
-            { content: tour.time || "45 min", styles: { fillColor: [241, 245, 249] } },
-            { content: "", styles: { fillColor: [241, 245, 249] } }
-          ]);
-        } else {
-          let fractionText = tour.fraction || "";
-          if (tour.is_same_day) fractionText += " [SD]";
-          
-          // Completed tours get green background
-          const completedStyle = tour.completed ? { fillColor: [220, 252, 231] } : {};
-          const sameDayStyle = tour.is_same_day ? { textColor: [220, 38, 38], fontStyle: 'bold' } : {};
-          
-          tableData.push([
-            { content: fractionText, styles: { ...completedStyle, ...sameDayStyle } },
-            { content: tour.facility || "", styles: completedStyle },
-            { content: (tour.address || "").substring(0, 35), styles: completedStyle },
-            { content: tour.container || "", styles: completedStyle },
-            { content: tour.weight ? `${tour.weight} kg` : "", styles: completedStyle },
-            { content: tour.time || "", styles: completedStyle }
-          ]);
-        }
-      });
-      
-      // Fill to 20 rows
-      const emptyRowsNeeded = Math.max(0, 20 - tableData.length);
-      for (let i = 0; i < emptyRowsNeeded; i++) {
-        tableData.push(["", "", "", "", "", ""]);
-      }
-      
-      // Generate table - no condition check
-      doc.autoTable({
-        startY: 82,
-        head: [[
-          { content: "FRAKTION", styles: { fillColor: [220, 38, 38] } },
-          { content: "AFLÆS. STED", styles: { fillColor: [220, 38, 38] } },
-          { content: "ADRESSE", styles: { fillColor: [220, 38, 38] } },
-          { content: "CONT.", styles: { fillColor: [220, 38, 38] } },
-          { content: "VÆGT", styles: { fillColor: [220, 38, 38] } },
-          { content: "TIL", styles: { fillColor: [220, 38, 38] } }
-        ]],
-        body: tableData,
-        theme: "grid",
-        headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-        styles: { fontSize: 8, cellPadding: 2, lineColor: [220, 38, 38], lineWidth: 0.1 },
-        columnStyles: {
-          0: { cellWidth: 35 }, 1: { cellWidth: 40 }, 2: { cellWidth: 50 },
-          3: { cellWidth: 20 }, 4: { cellWidth: 18 }, 5: { cellWidth: 18 }
-        }
-      });
-      
-      // STATS BOX
-      const finalY = doc.lastAutoTable?.finalY || 200;
-      
+      // STATS BOX (summary only, no table)
+      const statsY = 90;
       doc.setDrawColor(220, 38, 38);
-      doc.rect(14, finalY + 5, pageWidth - 28, 20);
+      doc.setLineWidth(0.5);
+      doc.rect(14, statsY, pageWidth - 28, 20);
       
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(220, 38, 38);
-      doc.text("TURE:", 18, finalY + 13);
-      doc.text("FÆRDIG:", 50, finalY + 13);
-      doc.text("TOTAL KG:", 90, finalY + 13);
-      doc.text("PAUSE:", 140, finalY + 13);
+      doc.text("TURE:", 18, statsY + 13);
+      doc.text("FÆRDIG:", 55, statsY + 13);
+      doc.text("TOTAL KG:", 100, statsY + 13);
+      doc.text("PAUSE:", 150, statsY + 13);
       
       doc.setTextColor(0, 0, 0);
       doc.setFont("helvetica", "normal");
-      doc.text(`${pdfTours.length}`, 32, finalY + 13);
-      doc.text(`${pdfCompletedTours.length}`, 68, finalY + 13);
-      doc.text(`${pdfTotalWeight}`, 115, finalY + 13);
-      doc.text(`${pdfPauses.length}`, 158, finalY + 13);
+      doc.text(`${pdfTours.length}`, 35, statsY + 13);
+      doc.text(`${pdfCompletedTours.length}`, 75, statsY + 13);
+      doc.text(`${pdfTotalWeight}`, 125, statsY + 13);
+      doc.text(`${pdfPauses.length}`, 167, statsY + 13);
       
       // NOTES
       if (notes) {
         doc.setFont("helvetica", "bold");
         doc.setTextColor(220, 38, 38);
-        doc.text("BEMÆRKNINGER:", 18, finalY + 22);
+        doc.text("BEMÆRKNINGER:", 18, statsY + 30);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(8);
-        doc.text(doc.splitTextToSize(notes, pageWidth - 40), 18, finalY + 28);
+        doc.text(doc.splitTextToSize(notes, pageWidth - 40), 18, statsY + 36);
       }
       
       // FOOTER
