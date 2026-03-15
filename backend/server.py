@@ -667,7 +667,7 @@ async def admin_login(credentials: dict):
     username = credentials.get("username", "")
     password = credentials.get("password", "")
     
-    if username == "admin" and password == "ilkaps":
+    if username == "admin" and password == "1234":
         return {"success": True, "message": "Login successful"}
     else:
         raise HTTPException(status_code=401, detail="Invalid credentials")
