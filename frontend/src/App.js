@@ -1421,6 +1421,16 @@ function App() {
   const [adminUser, setAdminUser] = useState("");
   const [adminPass, setAdminPass] = useState("");
 
+  // Driver setup state - check localStorage
+  const [driverSetupDone, setDriverSetupDone] = useState(() => {
+    return !!localStorage.getItem("korkman2_driver_name");
+  });
+  const [setupStep, setSetupStep] = useState(1); // 1=name, 2=plate
+  const [setupName, setSetupName] = useState("");
+  const [setupPlate, setSetupPlate] = useState(() => {
+    return localStorage.getItem("korkman2_vehicle_reg") || "";
+  });
+
   // Data state
   const [drivers, setDrivers] = useState([]);
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -1431,9 +1441,13 @@ function App() {
   // Filter state
   const [selectedPlads, setSelectedPlads] = useState("");
   
-  // Form state
-  const [driverName, setDriverName] = useState("");
-  const [vehicleReg, setVehicleReg] = useState("");
+  // Form state - init from localStorage
+  const [driverName, setDriverName] = useState(() => {
+    return localStorage.getItem("korkman2_driver_name") || "";
+  });
+  const [vehicleReg, setVehicleReg] = useState(() => {
+    return localStorage.getItem("korkman2_vehicle_reg") || "";
+  });
   const [startTime, setStartTime] = useState("07:00");
   const [endTime, setEndTime] = useState("");
   const [reportDate, setReportDate] = useState(new Date().toISOString().split("T")[0]);
@@ -1447,15 +1461,45 @@ function App() {
   const [manualContainer, setManualContainer] = useState("");
   const [isSameDay, setIsSameDay] = useState(false);
   
-  // Driver dropdown
-  const [showDriverDropdown, setShowDriverDropdown] = useState(false);
-  
   // Messages for driver
   const [driverMessages, setDriverMessages] = useState([]);
   const [showMessages, setShowMessages] = useState(false);
 
   // Get plads names from dynamic list
   const pladsOptions = pladsList.map(p => p.name);
+
+  // ============= DRIVER SETUP =============
+
+  const handleSetupName = () => {
+    if (!setupName.trim()) { toast.error("Indtast dit navn"); return; }
+    localStorage.setItem("korkman2_driver_name", setupName.trim());
+    setDriverName(setupName.trim());
+    setSetupStep(2);
+  };
+
+  const handleSetupPlate = () => {
+    if (!setupPlate.trim()) { toast.error("Indtast vogn nr."); return; }
+    localStorage.setItem("korkman2_vehicle_reg", setupPlate.trim());
+    setVehicleReg(setupPlate.trim());
+    setDriverSetupDone(true);
+  };
+
+  const handleChangePlate = (newPlate) => {
+    setVehicleReg(newPlate);
+    localStorage.setItem("korkman2_vehicle_reg", newPlate);
+  };
+
+  const handleLogoutDriver = () => {
+    localStorage.removeItem("korkman2_driver_name");
+    localStorage.removeItem("korkman2_vehicle_reg");
+    setDriverName("");
+    setVehicleReg("");
+    setSetupName("");
+    setSetupPlate("");
+    setSetupStep(1);
+    setDriverSetupDone(false);
+    setSelectedPlads("");
+  };
 
   // ============= API CALLS =============
 
@@ -1544,23 +1588,6 @@ function App() {
     }
   };
 
-  const handleSelectDriver = (driver) => {
-    setSelectedDriver(driver);
-    setDriverName(driver.name);
-    setVehicleReg(driver.plate);
-    // Automatically set plads based on driver's area
-    if (driver.area) {
-      setSelectedPlads(driver.area);
-      toast.success(`${driver.name} valgt - ${driver.area}`);
-    } else {
-      toast.success(`${driver.name} valgt`);
-    }
-    setShowDriverDropdown(false);
-    
-    // Fetch messages for this driver
-    fetchDriverMessages(driver.id);
-  };
-  
   const fetchDriverMessages = async (driverId) => {
     try {
       const res = await axios.get(`${API}/messages?driver_id=${driverId}`);
@@ -1585,6 +1612,17 @@ function App() {
       console.error("Error marking message read:", e);
     }
   };
+
+  // Match driver name with DB drivers for messages
+  useEffect(() => {
+    if (driverName && drivers.length > 0) {
+      const match = drivers.find(d => d.name.toLowerCase() === driverName.toLowerCase());
+      if (match) {
+        setSelectedDriver(match);
+        fetchDriverMessages(match.id);
+      }
+    }
+  }, [driverName, drivers]);
 
   const handleAddManualTour = async () => {
     if (!manualFraction || !manualFacility) { toast.error("Udfyld fraktion og modtageanlæg!"); return; }
@@ -1779,7 +1817,7 @@ function App() {
       doc.text(`${pdfPauses.length}`, 167, statsY + 11);
       
       // COMPLETED TOURS LIST - sorted by time
-      let currentY = statsY + 26;
+      let currentY = statsY + 28;
       
       const sortedCompleted = [...pdfCompletedTours].sort((a, b) => {
         return (a.time || "99:99").localeCompare(b.time || "99:99");
@@ -1790,23 +1828,23 @@ function App() {
         doc.setFont("helvetica", "bold");
         doc.setTextColor(220, 38, 38);
         doc.text("FULDFØRTE TURE:", 14, currentY);
-        currentY += 6;
+        currentY += 8;
         
         // Table header
         doc.setFillColor(220, 38, 38);
-        doc.rect(14, currentY, pageWidth - 28, 7, 'F');
-        doc.setFontSize(7);
+        doc.rect(14, currentY, pageWidth - 28, 8, 'F');
+        doc.setFontSize(7.5);
         doc.setTextColor(255, 255, 255);
         doc.setFont("helvetica", "bold");
-        doc.text("NR", 16, currentY + 5);
-        doc.text("TID", 26, currentY + 5);
-        doc.text("FRAKTION", 44, currentY + 5);
-        doc.text("MODTAGEANLÆG", 80, currentY + 5);
-        doc.text("ADRESSE", 125, currentY + 5);
-        doc.text("VÆGT", 178, currentY + 5);
-        currentY += 9;
+        doc.text("NR", 16, currentY + 5.5);
+        doc.text("TID", 28, currentY + 5.5);
+        doc.text("FRAKTION", 46, currentY + 5.5);
+        doc.text("MODTAGEANLÆG", 82, currentY + 5.5);
+        doc.text("ADRESSE", 126, currentY + 5.5);
+        doc.text("VÆGT", 178, currentY + 5.5);
+        currentY += 11;
         
-        doc.setFontSize(7);
+        doc.setFontSize(7.5);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(0, 0, 0);
         
@@ -1817,22 +1855,29 @@ function App() {
             currentY = 15;
           }
           
-          const rowBg = idx % 2 === 0;
-          if (rowBg) {
+          // Alternating row background
+          if (idx % 2 === 0) {
             doc.setFillColor(248, 250, 252);
-            doc.rect(14, currentY - 4, pageWidth - 28, 7, 'F');
+            doc.rect(14, currentY - 5, pageWidth - 28, 9, 'F');
           }
           
+          // Row separator line
+          doc.setDrawColor(230, 230, 230);
+          doc.setLineWidth(0.2);
+          doc.line(14, currentY + 4, pageWidth - 14, currentY + 4);
+          
           doc.setTextColor(0, 0, 0);
-          doc.text(`${idx + 1}`, 16, currentY);
-          doc.text(tour.time || "-", 26, currentY);
-          doc.text((tour.fraction || "").substring(0, 18), 44, currentY);
-          doc.text((tour.facility || "").substring(0, 22), 80, currentY);
-          doc.text((tour.address || "").substring(0, 28), 125, currentY);
+          doc.text(`${idx + 1}`, 16, currentY + 1);
           doc.setFont("helvetica", "bold");
-          doc.text(tour.weight ? `${tour.weight} kg` : "-", 178, currentY);
+          doc.text(tour.time || "-", 28, currentY + 1);
           doc.setFont("helvetica", "normal");
-          currentY += 7;
+          doc.text((tour.fraction || "").substring(0, 18), 46, currentY + 1);
+          doc.text((tour.facility || "").substring(0, 22), 82, currentY + 1);
+          doc.text((tour.address || "").substring(0, 26), 126, currentY + 1);
+          doc.setFont("helvetica", "bold");
+          doc.text(tour.weight ? `${tour.weight} kg` : "-", 178, currentY + 1);
+          doc.setFont("helvetica", "normal");
+          currentY += 9;
         });
       }
       
@@ -1966,6 +2011,84 @@ function App() {
     );
   }
 
+  // Driver setup screen
+  if (!driverSetupDone) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4" data-testid="driver-setup">
+        <Toaster position="top-right" richColors />
+        <div className="w-full max-w-md">
+          {/* Logo */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-3 bg-red-600 text-white px-6 py-3 rounded-xl shadow-lg mb-4">
+              <Truck className="w-8 h-8" />
+              <span className="font-heading font-black text-2xl">KORKMAN2</span>
+            </div>
+            <p className="text-sm text-muted-foreground">ILK Company ApS - Kørselsrapport</p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8">
+            {setupStep === 1 && (
+              <div className="space-y-6" data-testid="setup-step-name">
+                <div className="text-center">
+                  <Users className="w-12 h-12 mx-auto mb-3 text-red-600" />
+                  <h2 className="font-heading font-bold text-xl">Velkommen!</h2>
+                  <p className="text-muted-foreground text-sm mt-1">Indtast dit navn for at komme i gang</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Dit navn</label>
+                  <input type="text" value={setupName} onChange={(e) => setSetupName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSetupName()}
+                    placeholder="F.eks. Anders Nielsen"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-lg focus:border-red-500 focus:ring-0 outline-none"
+                    data-testid="setup-name-input" autoFocus />
+                </div>
+                <button onClick={handleSetupName}
+                  className="w-full py-3 bg-red-600 text-white rounded-xl font-bold text-lg hover:bg-red-700 transition-colors"
+                  data-testid="setup-name-btn">
+                  Næste
+                </button>
+              </div>
+            )}
+
+            {setupStep === 2 && (
+              <div className="space-y-6" data-testid="setup-step-plate">
+                <div className="text-center">
+                  <Car className="w-12 h-12 mx-auto mb-3 text-red-600" />
+                  <h2 className="font-heading font-bold text-xl">Hej {setupName}!</h2>
+                  <p className="text-muted-foreground text-sm mt-1">Hvilken vogn kører du i dag?</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Vogn nr. / Plade</label>
+                  <input type="text" value={setupPlate} onChange={(e) => setSetupPlate(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && handleSetupPlate()}
+                    placeholder="F.eks. AB 12 345"
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl text-lg font-mono text-center tracking-wider focus:border-red-500 focus:ring-0 outline-none"
+                    data-testid="setup-plate-input" autoFocus />
+                </div>
+                <button onClick={handleSetupPlate}
+                  className="w-full py-3 bg-red-600 text-white rounded-xl font-bold text-lg hover:bg-red-700 transition-colors"
+                  data-testid="setup-plate-btn">
+                  Start
+                </button>
+                <button onClick={() => setSetupStep(1)}
+                  className="w-full py-2 text-slate-400 hover:text-slate-600 text-sm">
+                  Tilbage
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Admin link */}
+          <div className="text-center mt-6">
+            <button onClick={() => setShowAdminLogin(true)} className="text-xs text-slate-400 hover:text-red-600 flex items-center gap-1 mx-auto">
+              <Shield className="w-3 h-3" /> Admin
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Main app
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900" data-testid="app-container">
@@ -1978,7 +2101,12 @@ function App() {
             <h1 className="font-heading font-black text-2xl md:text-3xl">KORKMAN2</h1>
             <p className="text-red-100 text-xs">ILK Company ApS - Kørselsrapport</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Driver info */}
+            <div className="hidden md:flex items-center gap-2 bg-red-700/50 px-3 py-1.5 rounded-lg">
+              <Users className="w-4 h-4 text-red-200" />
+              <span className="font-medium text-sm">{driverName}</span>
+            </div>
             {/* Message notification */}
             {driverMessages.length > 0 && (
               <button onClick={() => setShowMessages(!showMessages)}
@@ -1989,6 +2117,10 @@ function App() {
                 </span>
               </button>
             )}
+            <button onClick={handleLogoutDriver}
+              className="p-2 bg-red-700 rounded-lg hover:bg-red-800 text-xs" title="Log ud">
+              <LogOut className="w-4 h-4" />
+            </button>
             <button onClick={() => setShowAdminLogin(true)} 
               className="p-2 bg-red-700 rounded-lg hover:bg-red-800" title="Admin">
               <Shield className="w-5 h-5" />
@@ -2040,61 +2172,36 @@ function App() {
 
       <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         
-        {/* Driver Selection Box */}
+        {/* Driver Info & Time */}
         <section className="bg-white dark:bg-slate-800 rounded-xl border border-border shadow-sm">
           <div className="p-4 border-b border-border">
             <h2 className="font-heading font-bold text-lg flex items-center gap-2">
-              <Users className="w-5 h-5 text-red-600" /> Chauffør & Køretøj
+              <Users className="w-5 h-5 text-red-600" /> {driverName}
             </h2>
           </div>
           <div className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Driver Dropdown */}
-              <div className="relative">
-                <label className="block text-sm font-medium text-muted-foreground mb-1">Chauffør</label>
-                <button onClick={() => setShowDriverDropdown(!showDriverDropdown)}
-                  className="w-full px-4 py-2 bg-background border border-input rounded-lg text-left flex items-center justify-between hover:border-red-400">
-                  <span className={selectedDriver ? "font-medium" : "text-muted-foreground"}>
-                    {selectedDriver ? selectedDriver.name : "Vælg chauffør..."}
-                  </span>
-                  <ChevronDown className="w-4 h-4" />
-                </button>
-                {showDriverDropdown && (
-                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                    {drivers.map(driver => (
-                      <button key={driver.id} onClick={() => handleSelectDriver(driver)}
-                        className="w-full px-4 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-between">
-                        <span>{driver.name}</span>
-                        <span className="text-xs text-muted-foreground font-mono">{driver.plate}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              
-              {/* Vehicle */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Vehicle - editable */}
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-1">Vogn nr.</label>
-                <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg">
-                  <Car className="w-4 h-4 text-slate-500" />
-                  <span className="font-mono">{vehicleReg || "-"}</span>
-                </div>
+                <input type="text" value={vehicleReg}
+                  onChange={(e) => handleChangePlate(e.target.value.toUpperCase())}
+                  className="w-full px-3 py-2 border rounded-lg font-mono text-center"
+                  data-testid="vehicle-reg-input" />
               </div>
               
               {/* Time */}
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">Start</label>
-                  <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
-                    onFocus={() => { if (!startTime) setStartTime(getCurrentTime()); }}
-                    className="w-full px-3 py-2 border rounded-lg font-mono" />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-muted-foreground mb-1">Slut</label>
-                  <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
-                    onFocus={() => { if (!endTime) setEndTime(getCurrentTime()); }}
-                    className="w-full px-3 py-2 border rounded-lg font-mono" />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Start</label>
+                <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                  onFocus={() => { if (!startTime) setStartTime(getCurrentTime()); }}
+                  className="w-full px-3 py-2 border rounded-lg font-mono" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-muted-foreground mb-1">Slut</label>
+                <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+                  onFocus={() => { if (!endTime) setEndTime(getCurrentTime()); }}
+                  className="w-full px-3 py-2 border rounded-lg font-mono" />
               </div>
               
               {/* Date */}
