@@ -1,7 +1,7 @@
 # KORKMAN2 - Kørselsrapport System
 
 ## Original Problem Statement
-Logistics/driving report application for ILK Company ApS. Features include driver management, tour management, PDF reports, admin scheduling, and mobile-responsive UI.
+Logistics/driving report application for ILK Company ApS.
 
 ## Architecture
 - **Frontend**: React.js with Tailwind CSS
@@ -9,35 +9,27 @@ Logistics/driving report application for ILK Company ApS. Features include drive
 - **Database**: MongoDB
 
 ## Core Features
-1. Driver management (add, edit, delete with email)
-2. Tour management (admin adds via mail, driver adds manually)
-3. PDF report generation (summary + completed tours sorted by time)
-4. Admin panel with 5 tabs: Ture, Planlægning, Chauffører, Genbrugsplads, Historik
-5. Pause options (15/30/45 min)
-6. Automatic plads selection based on driver's area
-7. Tour workflow: På vej (yellow/top) → weight → OK (green/bottom)
-8. Admin tour management by genbrugsplads (mail parse)
-9. Auto-refresh tours every 10 seconds (driver sees admin-added tours)
-10. Auto-time recording on tour completion
-11. Daily and weekly scheduling with email notifications (mailto:)
+1. **Driver Setup Flow**: Name entry (saved permanently to localStorage) → Plate entry (editable daily) → Main app
+2. Admin tour management by genbrugsplads (mail parse)
+3. Tour workflow: På vej (yellow/top) → weight → OK (green/bottom)
+4. PDF report generation (summary + completed tours sorted by time)
+5. Auto-refresh tours every 10 seconds
+6. Admin panel: Ture, Planlægning, Chauffører, Genbrugsplads, Historik
+7. Daily/weekly scheduling with mailto: notifications
+8. Mobile-responsive design
 
 ## What's Been Implemented
-- [2026-03-13] All initial features (see CHANGELOG.md for details)
-- [2026-03-15] Bug fix: PDF generation (removed broken jspdf-autotable)
-- [2026-03-15] Feature: PDF includes completed tours sorted by time
-- [2026-03-15] Feature: Admin "Ture" tab with genbrugsplads tour management
-- [2026-03-15] Feature: Mail parse moved from driver to admin page
-- [2026-03-15] Feature: Auto-record time on tour completion
-- [2026-03-15] Bug fix: Weight entry no longer auto-completes tour
-- [2026-03-15] Bug fix: Tour workflow - På vej (yellow/top), OK (green/bottom)
-- [2026-03-15] Feature: Auto-refresh tours every 10 seconds
-- [2026-03-15] Fix: TourUpdate model - all fields Optional for partial updates
-
-## Database Collections
-- drivers, tours, reports, messages, plads, schedules
+- [2026-03-13] All initial features
+- [2026-03-15] PDF generation fix + completed tours sorted by time
+- [2026-03-15] Admin "Ture" tab with genbrugsplads tour management
+- [2026-03-15] Tour workflow: På vej (yellow), OK (green)
+- [2026-03-15] Auto-refresh tours every 10 seconds
+- [2026-03-15] **Driver setup flow**: Name (localStorage), plate, date/time
+- [2026-03-15] Driver logout function
+- [2026-03-15] PDF line spacing improvement
 
 ## API Endpoints
-- POST /api/seed, GET/POST /api/tours, DELETE /api/tours/report/{id}
+- POST /api/seed, GET/POST /api/tours, DELETE /api/tours/{id}
 - GET/POST/PUT /api/drivers, GET/POST/DELETE /api/plads
 - GET /api/reports/history, GET/POST /api/schedule
 - POST /api/admin/login (admin/ilkaps)
@@ -45,7 +37,6 @@ Logistics/driving report application for ILK Company ApS. Features include drive
 
 ## Known Issues / Backlog
 ### P0 - ALL RESOLVED
-### P1 - ALL RESOLVED
 ### P2 (Future)
 - Excel/CSV export
 - Driver performance analytics
