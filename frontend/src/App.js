@@ -1699,14 +1699,14 @@ function App() {
 
   const handleAdminLogin = async () => {
     try {
-      const res = await axios.post(`${API}/admin/login`, { username: adminUser, password: adminPass });
+      const res = await axios.post(`${API}/admin/login`, { username: "admin", password: adminPass });
       if (res.data.success) {
         setIsAdmin(true);
         setShowAdminLogin(false);
         toast.success("Admin login successful");
       }
     } catch (e) {
-      toast.error("Forkert brugernavn eller adgangskode");
+      toast.error("Forkert kode");
     }
   };
 
@@ -2112,11 +2112,9 @@ function App() {
             <h2 className="font-heading font-bold text-2xl">Admin Login</h2>
           </div>
           <div className="space-y-4">
-            <input type="text" value={adminUser} onChange={(e) => setAdminUser(e.target.value)}
-              placeholder="Brugernavn" className="w-full px-4 py-3 border rounded-lg" />
             <input type="password" value={adminPass} onChange={(e) => setAdminPass(e.target.value)}
-              placeholder="Adgangskode" className="w-full px-4 py-3 border rounded-lg"
-              onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()} />
+              placeholder="Indtast admin kode" className="w-full px-4 py-3 border rounded-lg text-center text-xl tracking-widest"
+              onKeyDown={(e) => e.key === "Enter" && handleAdminLogin()} autoFocus />
             <button onClick={handleAdminLogin}
               className="w-full py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700">
               Log ind
