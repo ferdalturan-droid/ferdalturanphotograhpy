@@ -3,7 +3,7 @@ import "@/App.css";
 import axios from "axios";
 import { Toaster, toast } from "sonner";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { 
   Truck, Users, Mail, FileText, CheckCircle2, MapPin,
   Wand2, Plus, Trash2, Clock, Weight, X, 
@@ -77,11 +77,22 @@ const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, dr
   const [weight, setWeight] = useState(tour.weight || "");
   const [time, setTime] = useState(tour.time || "");
 
+  // Only update weight on Enter key or blur - not on every keystroke
   const handleWeightChange = (e) => {
-    const val = e.target.value;
-    setWeight(val);
-    if (val && parseFloat(val) > 0) {
-      onUpdate(tour.id, { weight: parseFloat(val) || 0, completed: true, on_way: false });
+    setWeight(e.target.value);
+  };
+
+  const handleWeightSubmit = () => {
+    const val = parseFloat(weight);
+    if (val && val > 0) {
+      onUpdate(tour.id, { weight: val, completed: true, on_way: false });
+    }
+  };
+
+  const handleWeightKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleWeightSubmit();
     }
   };
 
@@ -173,7 +184,10 @@ const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, dr
         {tour.open_from && tour.open_to ? `${tour.open_from}-${tour.open_to}` : ""}
       </td>
       <td className="p-3">
-        <input type="number" value={weight} onChange={handleWeightChange} placeholder="kg"
+        <input type="number" value={weight} onChange={handleWeightChange} 
+          onKeyDown={handleWeightKeyDown}
+          onBlur={handleWeightSubmit}
+          placeholder="kg"
           className="w-20 px-2 py-1 text-sm font-mono bg-background border border-input rounded focus:ring-2 focus:ring-red-500"
           data-testid={`weight-input-${tour.id}`} />
       </td>
@@ -1586,28 +1600,26 @@ function App() {
         tableData.push(["", "", "", "", "", ""]);
       }
       
-      if (typeof doc.autoTable === 'function') {
-        doc.autoTable({
-          startY: 82,
-          head: [[
-            { content: "FRAKTION", styles: { fillColor: [220, 38, 38] } },
-            { content: "AFLÆS. STED", styles: { fillColor: [220, 38, 38] } },
-            { content: "ADRESSE", styles: { fillColor: [220, 38, 38] } },
-            { content: "CONT.", styles: { fillColor: [220, 38, 38] } },
-            { content: "VÆGT", styles: { fillColor: [220, 38, 38] } },
-            { content: "TIL", styles: { fillColor: [220, 38, 38] } }
-          ]],
-          body: tableData,
-          theme: "grid",
-          headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold', fontSize: 8 },
-          styles: { fontSize: 8, cellPadding: 2, lineColor: [220, 38, 38], lineWidth: 0.1 },
-          columnStyles: {
-            0: { cellWidth: 35 }, 1: { cellWidth: 40 }, 2: { cellWidth: 50 },
-            3: { cellWidth: 20 }, 4: { cellWidth: 18 }, 5: { cellWidth: 18 }
-          }
-          // Note: alternateRowStyles removed to preserve completed tour green background
-        });
-      }
+      // Generate table - no condition check
+      doc.autoTable({
+        startY: 82,
+        head: [[
+          { content: "FRAKTION", styles: { fillColor: [220, 38, 38] } },
+          { content: "AFLÆS. STED", styles: { fillColor: [220, 38, 38] } },
+          { content: "ADRESSE", styles: { fillColor: [220, 38, 38] } },
+          { content: "CONT.", styles: { fillColor: [220, 38, 38] } },
+          { content: "VÆGT", styles: { fillColor: [220, 38, 38] } },
+          { content: "TIL", styles: { fillColor: [220, 38, 38] } }
+        ]],
+        body: tableData,
+        theme: "grid",
+        headStyles: { fillColor: [220, 38, 38], textColor: 255, fontStyle: 'bold', fontSize: 8 },
+        styles: { fontSize: 8, cellPadding: 2, lineColor: [220, 38, 38], lineWidth: 0.1 },
+        columnStyles: {
+          0: { cellWidth: 35 }, 1: { cellWidth: 40 }, 2: { cellWidth: 50 },
+          3: { cellWidth: 20 }, 4: { cellWidth: 18 }, 5: { cellWidth: 18 }
+        }
+      });
       
       // STATS BOX
       const finalY = doc.lastAutoTable?.finalY || 200;

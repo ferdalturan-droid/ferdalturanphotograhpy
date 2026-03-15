@@ -7,7 +7,7 @@ from datetime import datetime
 from urllib.parse import urljoin
 
 class TourAppAPITester:
-    def __init__(self, base_url="https://quick-code-build.preview.emergentagent.com"):
+    def __init__(self, base_url="https://tour-scheduler-pro-1.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.tests_run = 0
