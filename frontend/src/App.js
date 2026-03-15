@@ -84,8 +84,7 @@ const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, dr
   const handleWeightSubmit = () => {
     const val = parseFloat(weight);
     if (val && val > 0) {
-      const currentTime = new Date().toTimeString().slice(0, 5);
-      onUpdate(tour.id, { weight: val, completed: true, on_way: false, time: tour.time || currentTime });
+      onUpdate(tour.id, { weight: val });
     }
   };
 
@@ -129,9 +128,9 @@ const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, dr
   }
 
   const rowClass = tour.completed 
-    ? "bg-emerald-50 dark:bg-emerald-950/30" 
+    ? "bg-emerald-100 dark:bg-emerald-950/40" 
     : tour.on_way 
-      ? "bg-amber-50 dark:bg-amber-950/30" 
+      ? "bg-yellow-100 dark:bg-yellow-950/40 border-l-4 border-l-yellow-500" 
       : tour.remark?.toLowerCase().includes("haster")
         ? "bg-red-50 dark:bg-red-950/30"
         : "";
@@ -200,7 +199,7 @@ const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, dr
         <div className="flex items-center gap-1">
           {!tour.completed && (
             <button onClick={() => onToggleOnWay(tour.id)}
-              className={`p-1.5 rounded ${tour.on_way ? "bg-amber-500 text-black" : "bg-slate-200 dark:bg-slate-700"} hover:opacity-80`}
+              className={`p-1.5 rounded ${tour.on_way ? "bg-yellow-400 text-black ring-2 ring-yellow-500" : "bg-slate-200 dark:bg-slate-700"} hover:opacity-80`}
               title={tour.on_way ? "På vej" : "Start tur"} data-testid={`onway-btn-${tour.id}`}>
               <Truck className="w-4 h-4" />
             </button>
@@ -1496,6 +1495,15 @@ function App() {
   useEffect(() => { seedData(); }, [seedData]);
   useEffect(() => { if (reportId) fetchTours(); }, [reportId, fetchTours]);
 
+  // Auto-refresh tours every 10 seconds so driver sees admin-added tours
+  useEffect(() => {
+    if (!reportId) return;
+    const interval = setInterval(() => {
+      fetchTours();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [reportId, fetchTours]);
+
   useEffect(() => {
     const initReport = async () => {
       if (!reportId) {
@@ -1650,8 +1658,9 @@ function App() {
     await handleUpdateTour(tourId, { 
       completed: nowCompleting, 
       on_way: false,
-      time: nowCompleting ? (tour.time || currentTime) : tour.time
+      time: nowCompleting ? currentTime : tour.time
     });
+    if (nowCompleting) toast.success("Tur fuldført!");
   };
 
   const handleDeleteTour = async (tourId) => {

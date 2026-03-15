@@ -112,9 +112,9 @@ class TourCreate(BaseModel):
 
 class TourUpdate(BaseModel):
     weight: Optional[float] = None
-    time: str = ""
-    completed: bool = False
-    on_way: bool = False
+    time: Optional[str] = None
+    completed: Optional[bool] = None
+    on_way: Optional[bool] = None
 
 class Report(BaseModel):
     model_config = ConfigDict(extra="ignore")
