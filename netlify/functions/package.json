@@ -1,0 +1,8 @@
+{
+  "name": "korkman2-api",
+  "version": "1.0.0",
+  "dependencies": {
+    "mongodb": "^6.3.0",
+    "uuid": "^9.0.0"
+  }
+}

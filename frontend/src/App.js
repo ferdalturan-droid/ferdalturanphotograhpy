@@ -11,7 +11,7 @@ import {
   History, Building2, ChevronLeft, ChevronRight
 } from "lucide-react";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 const API = `${BACKEND_URL}/api`;
 
 // Get current time in HH:MM format
@@ -172,11 +172,11 @@ const TourRow = ({ tour, onUpdate, onDelete, onToggleOnWay, onToggleComplete, dr
       <td className="p-3 text-sm">
         <button 
           onClick={() => openInMaps(tour.address)}
-          className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 text-left"
-          title="Åbn i kort"
+          className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+          title={tour.address}
         >
-          <Navigation className="w-3 h-3 flex-shrink-0" />
-          <span className="truncate max-w-[150px]">{tour.address}</span>
+          <Navigation className="w-4 h-4 flex-shrink-0" />
+          <span className="hidden md:inline truncate max-w-[100px]">{tour.address?.split(",")[0] || tour.address}</span>
         </button>
       </td>
       <td className="p-3 font-mono text-sm">{tour.container}</td>
