@@ -1749,5 +1749,114 @@ document.addEventListener('keydown', e => {
   }
 });
 </script>
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ferdal Photography</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+      text-align: center;
+    }
+
+    header {
+      padding: 40px;
+      font-size: 32px;
+      font-weight: bold;
+      background: black;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      padding: 20px;
+    }
+
+    .gallery img {
+      width: 100%;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .gallery img:hover {
+      transform: scale(1.05);
+    }
+
+    button {
+      padding: 10px 20px;
+      margin-top: 10px;
+      border: none;
+      background: gold;
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  Ferdal Photography 📸
+</header>
+
+<h2>Müşteri Galerisi</h2>
+
+<div class="gallery" id="gallery"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBKNbeHty0yjzH_lMZ-Lzc12vmosd1hYPk",
+    authDomain: "ferdal-photography.firebaseapp.com",
+    projectId: "ferdal-photography",
+    storageBucket: "ferdal-photography.firebasestorage.app",
+    messagingSenderId: "5929525949",
+    appId: "1:5929525949:web:40af107495b60176820dd4",
+    measurementId: "G-CVCBV5XS3N"
+  };
+
+  const app = initializeApp(firebaseConfig);
+
+  // TEST FOTOĞRAFLAR (şimdilik)
+  const images = [
+    "https://picsum.photos/400/300?1",
+    "https://picsum.photos/400/300?2",
+    "https://picsum.photos/400/300?3"
+  ];
+
+  const gallery = document.getElementById("gallery");
+
+  images.forEach(src => {
+    const div = document.createElement("div");
+
+    const img = document.createElement("img");
+    img.src = src;
+
+    const btn = document.createElement("button");
+    btn.innerText = "Seç";
+
+    btn.onclick = () => {
+      alert("Seçildi ✔️ (sonraki adımda kaydedeceğiz)");
+    };
+
+    div.appendChild(img);
+    div.appendChild(btn);
+    gallery.appendChild(div);
+  });
+</script>
+
+</body>
+</html>
 </body>
 </html>
