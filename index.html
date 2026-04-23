@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ferdal Photography</title>
+<title>Ferdal Turan Photography</title>
 
 <style>
 body {
@@ -12,34 +12,29 @@ body {
   background:#000;
   color:white;
 }
-
 nav {
   padding:15px;
   border-bottom:1px solid gold;
   display:flex;
   justify-content:space-between;
 }
-
 button {
   background:gold;
   border:none;
   padding:10px;
   cursor:pointer;
 }
-
 .page { display:none; padding:20px; }
 .active { display:block; }
-
 .gallery {
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
   gap:10px;
 }
-
 .gallery img {
   width:100%;
+  border-radius:10px;
   cursor:pointer;
-  border-radius:8px;
 }
 .selected {
   border:3px solid gold;
@@ -52,25 +47,30 @@ button {
 <nav>
   <div>Ferdal Photography</div>
   <div>
-    <button onclick="show('home')">Home</button>
-    <button onclick="show('galleryPage')">Gallery</button>
-    <button onclick="show('admin')">Admin</button>
+    <button onclick="showPage('home')">Forside</button>
+    <button onclick="showPage('galleryPage')">Galleri</button>
+    <button onclick="showPage('admin')">Admin</button>
   </div>
 </nav>
 
+<!-- HOME -->
 <div id="home" class="page active">
-  <h1>Welcome</h1>
+  <h1>Velkommen</h1>
+  <p>Ferdal Turan Photography</p>
 </div>
 
+<!-- GALLERY -->
 <div id="galleryPage" class="page">
-  <input id="codeInput" placeholder="Kod gir">
-  <button onclick="loadGallery()">Gir</button>
+  <h2>Galleri adgang</h2>
+  <input id="codeInput" placeholder="Indtast kode">
+  <button onclick="loadGallery()">Åbn</button>
   <div class="gallery" id="gallery"></div>
 </div>
 
+<!-- ADMIN -->
 <div id="admin" class="page">
-  <h2>Upload Foto</h2>
-  <input type="text" id="albumCode" placeholder="Kod">
+  <h2>Upload billeder</h2>
+  <input type="text" id="albumCode" placeholder="Kode">
   <input type="file" id="fileInput" multiple>
   <button onclick="upload()">Upload</button>
 </div>
@@ -85,13 +85,14 @@ const firebaseConfig = {
   projectId: "ferdal-photography",
   storageBucket: "ferdal-photography.firebasestorage.app",
   messagingSenderId: "5929525949",
-  appId: "1:5929525949:web:40af107495b60176820dd4"
+  appId: "1:5929525949:web:40af107495b60176820dd4",
+  measurementId: "G-CVCBV5XS3N"
 };
 
 const app = initializeApp(firebaseConfig);
 const storage = getStorage(app);
 
-window.show = (id)=>{
+window.showPage = (id)=>{
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
@@ -100,33 +101,42 @@ window.upload = async ()=>{
   const files = document.getElementById('fileInput').files;
   const code = document.getElementById('albumCode').value;
 
+  if(!code) return alert("Kod gir");
+
   for(let f of files){
     const storageRef = ref(storage, code + "/" + f.name);
     await uploadBytes(storageRef, f);
   }
 
-  alert("Yüklendi");
+  alert("Yüklendi ✔️");
 }
 
 window.loadGallery = async ()=>{
   const code = document.getElementById('codeInput').value;
   const listRef = ref(storage, code);
-  const res = await listAll(listRef);
 
   const gallery = document.getElementById('gallery');
   gallery.innerHTML="";
 
-  res.items.forEach(async item=>{
-    const url = await getDownloadURL(item);
-    const img = document.createElement('img');
-    img.src = url;
+  try{
+    const res = await listAll(listRef);
 
-    img.onclick = ()=>{
-      img.classList.toggle('selected');
-    }
+    res.items.forEach(async item=>{
+      const url = await getDownloadURL(item);
 
-    gallery.appendChild(img);
-  });
+      const img = document.createElement('img');
+      img.src = url;
+
+      img.onclick = ()=>{
+        img.classList.toggle('selected');
+      }
+
+      gallery.appendChild(img);
+    });
+
+  }catch{
+    alert("Kod bulunamadı");
+  }
 }
 </script>
 
