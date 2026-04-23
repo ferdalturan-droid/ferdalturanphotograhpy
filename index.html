@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ferdal Turan Photography</title>
+<title>Ferdal Photography</title>
 
 <style>
 body {
@@ -11,38 +11,38 @@ body {
   font-family: Arial;
   background:#000;
   color:white;
-  text-align:center;
 }
 
 nav {
-  padding:20px;
+  padding:15px;
   border-bottom:1px solid gold;
+  display:flex;
+  justify-content:space-between;
 }
 
-h1 {
-  color:gold;
-  margin-top:40px;
+button {
+  background:gold;
+  border:none;
+  padding:10px;
+  cursor:pointer;
 }
+
+.page { display:none; padding:20px; }
+.active { display:block; }
 
 .gallery {
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-  gap:15px;
-  padding:20px;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:10px;
 }
 
 .gallery img {
   width:100%;
-  border-radius:10px;
   cursor:pointer;
+  border-radius:8px;
 }
-
-button {
-  padding:10px;
-  margin-top:10px;
-  background:gold;
-  border:none;
-  cursor:pointer;
+.selected {
+  border:3px solid gold;
 }
 </style>
 </head>
@@ -50,15 +50,34 @@ button {
 <body>
 
 <nav>
-  <h2>Ferdal Photography</h2>
+  <div>Ferdal Photography</div>
+  <div>
+    <button onclick="show('home')">Home</button>
+    <button onclick="show('galleryPage')">Gallery</button>
+    <button onclick="show('admin')">Admin</button>
+  </div>
 </nav>
 
-<h1>Müşteri Galerisi</h1>
+<div id="home" class="page active">
+  <h1>Welcome</h1>
+</div>
 
-<div class="gallery" id="gallery"></div>
+<div id="galleryPage" class="page">
+  <input id="codeInput" placeholder="Kod gir">
+  <button onclick="loadGallery()">Gir</button>
+  <div class="gallery" id="gallery"></div>
+</div>
+
+<div id="admin" class="page">
+  <h2>Upload Foto</h2>
+  <input type="text" id="albumCode" placeholder="Kod">
+  <input type="file" id="fileInput" multiple>
+  <button onclick="upload()">Upload</button>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, listAll } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBKNbeHty0yjzH_lMZ-Lzc12vmosd1hYPk",
@@ -66,38 +85,49 @@ const firebaseConfig = {
   projectId: "ferdal-photography",
   storageBucket: "ferdal-photography.firebasestorage.app",
   messagingSenderId: "5929525949",
-  appId: "1:5929525949:web:40af107495b60176820dd4",
-  measurementId: "G-CVCBV5XS3N"
+  appId: "1:5929525949:web:40af107495b60176820dd4"
 };
 
-initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+const storage = getStorage(app);
 
-// TEST FOTO (şimdilik)
-const images = [
-  "https://picsum.photos/400/300?1",
-  "https://picsum.photos/400/300?2",
-  "https://picsum.photos/400/300?3"
-];
+window.show = (id)=>{
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
 
-const gallery = document.getElementById("gallery");
+window.upload = async ()=>{
+  const files = document.getElementById('fileInput').files;
+  const code = document.getElementById('albumCode').value;
 
-images.forEach(src => {
-  const div = document.createElement("div");
+  for(let f of files){
+    const storageRef = ref(storage, code + "/" + f.name);
+    await uploadBytes(storageRef, f);
+  }
 
-  const img = document.createElement("img");
-  img.src = src;
+  alert("Yüklendi");
+}
 
-  const btn = document.createElement("button");
-  btn.innerText = "Seç";
+window.loadGallery = async ()=>{
+  const code = document.getElementById('codeInput').value;
+  const listRef = ref(storage, code);
+  const res = await listAll(listRef);
 
-  btn.onclick = () => {
-    alert("Seçildi ✔️");
-  };
+  const gallery = document.getElementById('gallery');
+  gallery.innerHTML="";
 
-  div.appendChild(img);
-  div.appendChild(btn);
-  gallery.appendChild(div);
-});
+  res.items.forEach(async item=>{
+    const url = await getDownloadURL(item);
+    const img = document.createElement('img');
+    img.src = url;
+
+    img.onclick = ()=>{
+      img.classList.toggle('selected');
+    }
+
+    gallery.appendChild(img);
+  });
+}
 </script>
 
 </body>
